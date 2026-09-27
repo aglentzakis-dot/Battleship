@@ -1,0 +1,1361 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Ναυμαχία 3Δ · Battleship 3D</title>
+<meta name="description" content="Ναυμαχία σε τρία επίπεδα — αέρας, επιφάνεια, βυθός — με υποβρύχιο, αεροσκάφη και νάρκες. Battleship on three layers.">
+<meta name="theme-color" content="#06121B">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ναυμαχία 3Δ">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Advent+Pro:wght@500;600;700;800&family=Commissioner:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{margin:0;background:#06121B}img{max-width:100%}</style>
+</head>
+<body>
+<style>
+:root{
+  --abyss:#06121B; --hull:#0C1F2C; --hull2:#11293A; --rule:#1F3C50;
+  --text:#D7E5EB; --muted:#7F9CAD; --signal:#F3A83B; --flare:#FF5B4F; --foam:#86D2DF;
+  --sea:#0F3149; --skyc:#1C3E57;
+  --d1:#12405A; --d2:#0B2C43; --d3:#061A2A; --hullc:#6B8394;
+  --display:'Advent Pro','Commissioner',system-ui,sans-serif;
+  --body:'Commissioner',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--abyss);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.45;
+  background-image:radial-gradient(1200px 500px at 70% -10%,#0f2a3d 0,transparent 70%);}
+.app{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:18px 48px}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px;margin-bottom:16px}
+.brand h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,7vw,52px);letter-spacing:.08em;line-height:.9;margin:0}
+.brand h1 span{color:transparent;-webkit-text-stroke:1.5px var(--signal);margin-left:.15em}
+.brand p{margin:6px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+.topright{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.status{font-family:var(--display);font-size:20px;font-weight:600;letter-spacing:.04em;display:flex;align-items:center;gap:10px;text-align:right}
+.status .dot{width:10px;height:10px;border-radius:50%;background:var(--foam);box-shadow:0 0 10px var(--foam);flex:none}
+.status.enemy .dot{background:var(--flare);box-shadow:0 0 10px var(--flare)}
+.status small{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em}
+.score{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+.mini{display:flex;gap:6px}
+.mini button{background:var(--hull);border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;cursor:pointer;color:var(--muted)}
+.mini button[aria-pressed="true"]{color:var(--foam);border-color:var(--foam)}
+.mini button#btnLang{color:var(--signal);border-color:rgba(243,168,59,.5)}
+.mini button#btnInstall{color:var(--signal);border-color:var(--signal)}
+
+.layout{display:grid;gap:18px}
+@media (min-width:980px){.layout{grid-template-columns:minmax(0,1fr) 340px;align-items:start}}
+
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{flex:1;background:var(--hull);border:1px solid var(--rule);border-radius:6px;padding:9px 8px;font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.03em;cursor:pointer;color:var(--muted)}
+.tab b{font-family:var(--mono);font-weight:600;font-size:12px;margin-left:4px}
+.tab.on{color:var(--text);border-color:var(--signal);background:var(--hull2)}
+@media (min-width:980px){.tabs{display:none}}
+
+.boards{display:grid;gap:18px}
+@media (min-width:980px){.boards{grid-template-columns:1fr 1fr}.boards.single{grid-template-columns:minmax(0,520px)}}
+@media (max-width:979px){.boardwrap:not(.active){display:none}}
+
+.boardhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 4px}
+.boardhead h2{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:.06em;margin:0;text-transform:uppercase}
+.layerTag{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:right}
+.layerTag b{color:var(--signal);font-weight:600}
+.stage{perspective:1100px;padding-top:6px}
+.board{display:grid;grid-template-columns:16px repeat(10,minmax(0,1fr));gap:2px;transform:rotateX(13deg);transform-origin:50% 100%;
+  padding:6px;border-radius:8px;background:linear-gradient(180deg,rgba(134,210,223,.06),rgba(0,0,0,.2));border:1px solid var(--rule);
+  box-shadow:0 18px 30px -18px rgba(0,0,0,.9)}
+@media (prefers-reduced-motion:reduce){.board{transform:none}}
+.lbl{font-family:var(--mono);font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;min-height:14px}
+.boardwrap{--cellbg:var(--sea)}
+.boardwrap[data-layer="deep"]{--cellbg:var(--d2)}
+.boardwrap[data-layer="air"]{--cellbg:var(--skyc)}
+.boardwrap[data-sea="storm"]{--cellbg:#123449}
+.boardwrap[data-sea="fog"]{--cellbg:#1A3547}
+.cell{aspect-ratio:1;border:0;border-radius:3px;background:var(--cellbg);position:relative;padding:0;cursor:pointer;transition:background .25s;min-width:0}
+.cell:disabled{cursor:default}
+.cell:not(:disabled):hover{filter:brightness(1.35)}
+.cell i{position:absolute;pointer-events:none}
+.cell .dp{inset:20%;border-radius:50%}
+.cell .sf{inset:0;border-radius:3px}
+
+.cell.ship{background:linear-gradient(180deg,#7E97A8,#4B6173)}
+.cell.ship.h.s0{border-radius:45% 3px 3px 45%}.cell.ship.h.s1{border-radius:3px 45% 45% 3px}
+.cell.ship.v.s0{border-radius:45% 45% 3px 3px}.cell.ship.v.s1{border-radius:3px 3px 45% 45%}
+.cell.ship.sel{box-shadow:inset 0 0 0 2px var(--signal)}
+.cell.subc .dp{inset:14% 6%;border:1.5px dashed var(--foam);border-radius:40%}
+.cell.subc.dep1 .dp{background:rgba(134,210,223,.35)}
+.cell.subc.dep2 .dp{background:rgba(134,210,223,.16)}
+.cell.subc.dep3 .dp{background:rgba(134,210,223,.05);opacity:.7}
+.cell.subc.sel .dp{border-color:var(--signal);border-style:solid}
+.fadeSurface .cell.ship{opacity:.35}
+
+.cell.miss .sf::after{content:"";position:absolute;left:50%;top:50%;width:22%;height:22%;margin:-11% 0 0 -11%;border-radius:50%;background:var(--muted);opacity:.8}
+.cell.hit .sf{background:radial-gradient(circle,#FFD29A 0 12%,var(--flare) 30%,rgba(120,20,15,.9) 72%)}
+.cell.sunk .sf{background:repeating-linear-gradient(45deg,rgba(255,91,79,.55) 0 3px,rgba(20,6,6,.75) 3px 6px)}
+.cell.dmiss .dp{border:1px solid rgba(134,210,223,.28)}
+.cell.dhit .dp{background:var(--foam);box-shadow:0 0 8px var(--foam)}
+.cell.dsunk .dp{background:repeating-linear-gradient(45deg,var(--foam) 0 2px,transparent 2px 4px);opacity:.8}
+.cell.mine .sf::before{content:"";position:absolute;left:50%;top:50%;width:34%;height:34%;margin:-17% 0 0 -17%;border-radius:50%;background:var(--signal);box-shadow:0 0 0 2px rgba(243,168,59,.28),0 0 6px rgba(243,168,59,.5)}
+.cell.mineboom .sf::before{content:"";position:absolute;left:50%;top:50%;width:40%;height:40%;margin:-20% 0 0 -20%;border-radius:50%;background:var(--flare);box-shadow:0 0 10px var(--flare)}
+.cell.spot{box-shadow:inset 0 0 0 2px var(--signal)}
+.cell.sonY{box-shadow:inset 0 0 0 2px rgba(134,210,223,.9);background-image:linear-gradient(rgba(134,210,223,.18),rgba(134,210,223,.18))}
+.cell.sonN{background-image:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28))}
+.cell.wake{background-image:linear-gradient(90deg,transparent 40%,rgba(243,168,59,.35) 50%,transparent 60%)}
+.cell.enemyPing{box-shadow:inset 0 0 0 1px rgba(255,91,79,.8)}
+.cell.aim{outline:2px solid var(--signal);outline-offset:-2px;z-index:2}
+.cell.burst1{outline:2px dashed var(--signal);outline-offset:-2px}
+.cell.boom{animation:boom .7s ease-out}
+@keyframes boom{0%{box-shadow:0 0 0 0 rgba(243,168,59,.95)}100%{box-shadow:0 0 0 14px rgba(243,168,59,0)}}
+@media (prefers-reduced-motion:reduce){.cell.boom{animation:none}}
+
+.setup{margin-top:14px;display:grid;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--hull);border:1px solid var(--rule);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px}
+.chip.on{border-color:var(--signal);background:var(--hull2)}
+.pips{display:inline-flex;gap:2px}.pips span{width:6px;height:6px;border-radius:1px;background:var(--hullc)}
+.chip.deep .pips span{background:var(--foam);border-radius:50%}
+.chip.mines .pips span{background:var(--signal);border-radius:50%}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{background:var(--hull2);border:1px solid var(--rule);border-radius:6px;padding:9px 14px;cursor:pointer;font-weight:500}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--signal);color:#1b1105;border-color:var(--signal);font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.06em;padding:9px 22px}
+select{font:inherit;background:var(--hull2);color:var(--text);border:1px solid var(--rule);border-radius:6px;padding:8px 10px}
+label.inl{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+
+.weapons{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:6px}
+.wpn{text-align:left;background:var(--hull);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;cursor:pointer;display:grid;gap:2px;position:relative}
+.wpn .n{font-family:var(--display);font-weight:700;font-size:15.5px;letter-spacing:.02em;padding-right:14px;overflow-wrap:break-word;word-break:keep-all;hyphens:none}
+.wpn .m{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.wpn .ly{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%}
+.wpn .ly.surface{background:#3F7FA3}.wpn .ly.deep{background:var(--foam);box-shadow:0 0 0 2px var(--d2)}.wpn .ly.air{background:#C9DCE6}
+.wpn.on{border-color:var(--signal);background:var(--hull2);box-shadow:0 0 0 1px var(--signal) inset}
+.wpn.on .m{color:var(--signal)}
+.wpn:disabled{opacity:.38;cursor:default}
+.wpn.ready:not(:disabled){border-color:var(--foam)}
+.hint{margin:10px 2px 0;color:var(--muted);font-size:13.5px;min-height:2.6em;max-width:70ch}
+.hint b{color:var(--text)}
+
+.panel{background:var(--hull);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.panel h3{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin:0 0 8px;color:var(--muted)}
+#section{width:100%;height:auto;display:block;border-radius:5px}
+#section .st{font-family:var(--mono);font-size:9px;letter-spacing:.14em;fill:var(--muted)}
+#section .dl{font-family:var(--mono);font-size:8.5px;fill:var(--muted)}
+#section .pl{font-family:var(--mono);font-size:9px;font-weight:600}
+.pulse{animation:pulse 1.1s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.airline{font-size:13px;color:var(--muted);margin:8px 0 0;display:grid;gap:3px}
+.airline b{color:var(--text);font-weight:600}
+.airline .warn{color:var(--flare)}
+.subctl{margin-top:10px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.gauge{font-family:var(--mono);font-size:13px}
+.gauge b{color:var(--foam);font-size:16px}
+.gauge small{display:block;color:var(--muted);font-size:11px;line-height:1.3;margin-top:2px}
+.dpad{display:grid;grid-template-columns:repeat(3,34px);grid-template-rows:repeat(3,30px);gap:3px}
+.dpad button{background:var(--hull2);border:1px solid var(--rule);border-radius:5px;cursor:pointer;font-size:13px;padding:0;line-height:1}
+.dpad button:disabled{opacity:.3;cursor:default}
+.dpad .mid{font-family:var(--mono);font-size:8px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center}
+.depthrow{display:flex;gap:6px;margin-top:8px}
+.depthrow .btn{flex:1;padding:7px 8px;font-size:13px}
+
+.sea{display:flex;gap:10px;align-items:flex-start}
+.sea .ico{width:38px;height:38px;flex:none}
+.sea h4{font-family:var(--display);font-size:19px;font-weight:700;margin:0;letter-spacing:.04em}
+.sea p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+.sea .until{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em}
+
+.fleets{display:grid;gap:10px;font-size:12.5px}
+.fleets h4{margin:0 0 4px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.fleets ul{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.fleets li{display:flex;justify-content:space-between;gap:8px;padding:3px 6px;border-radius:4px;background:rgba(255,255,255,.03)}
+.fleets li span.meta{color:var(--muted);font-size:11px;text-align:right}
+.fleets li.dead{opacity:.45}
+.fleets li.dead span.nm{text-decoration:line-through}
+.fleets li.hurt{box-shadow:inset 2px 0 0 var(--signal)}
+
+.log{list-style:none;margin:0;padding:0;max-height:250px;overflow:auto;display:grid;gap:5px;font-size:13px}
+.log li{padding-left:10px;border-left:2px solid var(--rule);color:var(--muted)}
+.log li.me{color:var(--text)}
+.log li.hit{border-color:var(--signal)}.log li.sunk{border-color:var(--signal);color:var(--signal);font-weight:600}
+.log li.warn{border-color:var(--flare);color:#FFB0A8}.log li.lost{border-color:var(--flare);color:var(--flare);font-weight:600}
+.log li.info{border-color:var(--foam)}
+.log li .t{font-family:var(--mono);font-size:10px;color:var(--muted);margin-right:6px}
+details.rules summary{cursor:pointer;font-family:var(--display);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+details.rules ul{margin:10px 0 0;padding-left:18px;font-size:13.5px;display:grid;gap:6px}
+details.rules b{color:var(--signal);font-weight:600}
+
+.overlay{position:fixed;inset:0;background:rgba(3,10,16,.86);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20;backdrop-filter:blur(4px)}
+.card{background:var(--hull);border:1px solid var(--rule);border-radius:10px;padding:26px 24px;max-width:430px;width:100%;text-align:center}
+.card h2{font-family:var(--display);font-size:clamp(32px,10vw,54px);font-weight:800;letter-spacing:.08em;margin:0;line-height:1}
+.card h2.win{color:var(--signal)}.card h2.lose{color:var(--flare)}
+.card p{color:var(--muted);margin:10px 0 18px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:20px}
+@media (min-width:420px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stats div{border-top:1px solid var(--rule);padding-top:8px}
+.stats b{display:block;font-family:var(--mono);font-size:20px;color:var(--text);font-variant-numeric:tabular-nums}
+.stats span{font-size:11px;color:var(--muted)}
+</style>
+
+<div class="app" id="app" lang="el">
+  <header class="top">
+    <div class="brand">
+      <h1 id="brandTitle">ΝΑΥΜΑΧΙΑ<span>3Δ</span></h1>
+      <p id="tagline">Αέρας · Επιφάνεια · Βυθός</p>
+    </div>
+    <div class="topright">
+      <div class="status" id="status"><span class="dot"></span><span id="statusText"></span></div>
+      <div class="score" id="record"></div>
+      <div class="mini">
+        <button id="btnInstall" type="button" hidden></button>
+        <button id="btnLang" type="button">EN</button>
+        <button id="btnSfx" type="button" aria-pressed="true"></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section>
+      <div class="tabs" id="tabs" hidden>
+        <button class="tab" id="tabEnemy" type="button"><span id="tabEnemyTxt"></span><b id="enemyLeft"></b></button>
+        <button class="tab" id="tabMine" type="button"><span id="tabMineTxt"></span><b id="myLeft"></b></button>
+      </div>
+      <div class="boards" id="boards">
+        <div class="boardwrap" id="wrapEnemy" data-layer="surface">
+          <div class="boardhead"><h2 id="enemyTitle"></h2><span class="layerTag" id="layerTag"></span></div>
+          <div class="stage"><div class="board" id="boardEnemy"></div></div>
+        </div>
+        <div class="boardwrap active" id="wrapMine" data-layer="surface">
+          <div class="boardhead"><h2 id="mineTitle"></h2><span class="layerTag" id="mineTag"></span></div>
+          <div class="stage"><div class="board" id="boardMine"></div></div>
+        </div>
+      </div>
+
+      <div class="setup" id="setup">
+        <div class="chips" id="chips"></div>
+        <div class="row">
+          <button class="btn" id="btnRotate" type="button"></button>
+          <button class="btn" id="btnShuffle" type="button"></button>
+          <label class="inl" for="mode"><span id="lblMode"></span>
+            <select id="mode">
+              <option value="ai" selected></option>
+              <option value="duo"></option>
+            </select>
+          </label>
+          <label class="inl" for="diff" id="diffWrap"><span id="lblDiff"></span>
+            <select id="diff">
+              <option value="easy"></option>
+              <option value="normal" selected></option>
+              <option value="hard"></option>
+            </select>
+          </label>
+          <button class="btn primary" id="btnStart" type="button"></button>
+        </div>
+      </div>
+
+      <div class="weapons" id="weapons" hidden></div>
+      <p class="hint" id="hint"></p>
+    </section>
+
+    <aside>
+      <div class="panel">
+        <h3 id="hSea"></h3>
+        <div class="sea" id="seaBox"></div>
+      </div>
+      <div class="panel">
+        <h3 id="hSection"></h3>
+        <svg id="section" viewBox="0 0 340 200" role="img"></svg>
+        <div class="airline" id="airline"></div>
+        <div class="subctl">
+          <div class="gauge" id="gauge"></div>
+          <div class="dpad" id="dpad">
+            <span></span><button type="button" data-d="up">▲</button><span></span>
+            <button type="button" data-d="left">◀</button><span class="mid" id="dpadMid"></span><button type="button" data-d="right">▶</button>
+            <span></span><button type="button" data-d="down">▼</button><span></span>
+          </div>
+        </div>
+        <div class="depthrow">
+          <button class="btn" id="btnUp" type="button"></button>
+          <button class="btn" id="btnDown" type="button"></button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3 id="hFleets"></h3>
+        <div class="fleets" id="fleets"></div>
+      </div>
+      <div class="panel">
+        <h3 id="hLog"></h3>
+        <ol class="log" id="log"></ol>
+      </div>
+      <details class="panel rules">
+        <summary id="hRules"></summary>
+        <ul id="rulesList"></ul>
+      </details>
+    </aside>
+  </main>
+
+  <div class="overlay" id="handoff" hidden>
+    <div class="card">
+      <h2 id="hoTitle"></h2>
+      <p id="hoText"></p>
+      <button class="btn primary" id="btnReady" type="button"></button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="card">
+      <h2 id="ovTitle"></h2>
+      <p id="ovText"></p>
+      <div class="stats" id="ovStats"></div>
+      <button class="btn primary" id="btnAgain" type="button"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+/* ===================== ΓΛΩΣΣΑ / LANGUAGE ===================== */
+const L={
+el:{
+ 'brand':'ΝΑΥΜΑΧΙΑ','brand2':'3Δ','tagline':'Αέρας · Επιφάνεια · Βυθός','langBtn':'EN',
+ 'sfx.on':'ΗΧΟΣ ΟΝ','sfx.off':'ΗΧΟΣ OFF','install':'ΕΓΚΑΤΑΣΤΑΣΗ',
+ 'cols':'ΑΒΓΔΕΖΗΘΙΚ',
+ 'ship.cv':'Αεροπλανοφόρο','ship.ff':'Φρεγάτα','ship.dd':'Αντιτορπιλικό','ship.pb':'Πυραυλάκατος','ship.ss':'Υποβρύχιο',
+ 'gift.cv':'αεροσκάφη','gift.ff':'σόναρ + αντιαεροπορικά','gift.dd':'βόμβες βυθού','gift.pb':'διπλή ριπή','gift.ss':'τορπίλες',
+ 'depth.1':'Περισκόπιο','depth.2':'Μέσο βάθος','depth.3':'Μεγάλο βάθος',
+ 'layer.surface':'Επιφάνεια','layer.deep':'Βυθός','layer.air':'Αέρας',
+ 'sea.calm.n':'Γαλήνη','sea.calm.d':'Καθαρός ορίζοντας. Όλα τα όπλα δουλεύουν κανονικά.',
+ 'sea.storm.n':'Φουρτούνα','sea.storm.d':'1 στις 5 βολές κανονιού χάνεται στο κύμα, τα αεροσκάφη είναι καθηλωμένα και οι βόμβες βυθού παρασύρονται.',
+ 'sea.fog.n':'Ομίχλη','sea.fog.d':'Τα αναγνωριστικά δεν βλέπουν τίποτα και τα αντιαεροπορικά ρίχνουν στα τυφλά (−25%).',
+ 'sea.current.n':'Ρεύματα','sea.current.d':'Τα υποβρύχια παρασύρονται μόνα τους κάθε γύρο και το σόναρ μπερδεύεται.',
+ 'w.gun':'Κανόνι','w.burst':'Διπλή ριπή','w.dc':'Βόμβα βυθού','w.sonar':'Σόναρ','w.torp':'Τορπίλη','w.bomb':'Αεροπορική επιδρομή','w.aa':'Αντιαεροπορικά','w.launch':'Απογείωση',
+ 'm.gunInf':'∞ · 1 τετράγωνο','m.gunStorm':'φουρτούνα · 20% χάνεται','m.burstLost':'χάθηκε η Πυραυλάκατος','m.reload':'γεμίζει · {n} γύρ.','m.burstOk':'2 βολές μαζί',
+ 'm.ddLost':'χάθηκε το Αντιτορπιλικό','m.dcLeft':'×{n} · σταυρός 5','m.dcOut':'εξαντλήθηκαν','m.ffLost':'χάθηκε η Φρεγάτα','m.sonarLeft':'×{n} · σάρωση 3×3','m.sonarOut':'εξαντλήθηκε',
+ 'm.ssLost':'χάθηκε το υποβρύχιο','m.periOnly':'μόνο στα 15μ','m.torpOk':'έτοιμη · γραμμή 1×3',
+ 'm.bombReady':'{n} πάνω από στόχο · 2×2','m.bombNone':'κανένα σε απόσταση 1',
+ 'm.aa':'απόστ. {d} · {p}%','m.skyClear':'καθαρός ουρανός',
+ 'm.cvLost':'χάθηκε το αεροπλανοφόρο','m.deck':'κατεστραμμένο κατάστρωμα','m.stormAir':'φουρτούνα — καθηλωμένα','m.refuel':'ανεφοδιασμός…','m.hangarEmpty':'άδειο υπόστεγο','m.maxAir':'μέγ. 2 σε πτήση','m.hangar':'υπόστεγο: {n}',
+ 'm.again':'πάτα ξανά για εκτέλεση','m.second':'διάλεξε δεύτερο στόχο',
+ 'h.gun':'<b>Κανόνι:</b> μία βολή σε τετράγωνο. Βρίσκει επιφάνεια — και υποβρύχιο στο περισκόπιο (50%). Προσοχή στις νάρκες.',
+ 'h.burst':'<b>Διπλή ριπή:</b> δύο βολές στον ίδιο γύρο. Διάλεξε πρώτο και μετά δεύτερο τετράγωνο.',
+ 'h.dc':'<b>Βόμβα βυθού:</b> σταυρός 5 τετραγώνων. Επιτυχία ανά βάθος 90% / 60% / 25%. Πάτα δύο φορές για πυρ.',
+ 'h.sonar':'<b>Σόναρ:</b> σάρωση 3×3. Στα 300μ το θερμοκλινές το ξεγελά — «σιωπή» δεν σημαίνει άδειο. Πάτα δύο φορές.',
+ 'h.torp':'<b>Τορπίλη:</b> σίγουρο χτύπημα σε γραμμή 1×3, αλλά προδίδει τη γραμμή του υποβρυχίου σου και σκάει σε νάρκες. Πάτα δύο φορές.',
+ 'h.bomb':'<b>Αεροπορική επιδρομή:</b> περιοχή 2×2, αγνοεί τις νάρκες. Πάτα δύο φορές.',
+ 'h.aa':'<b>Αντιαεροπορικά:</b> βάλλουν στο πιο κοντινό εχθρικό αεροσκάφος. Πάτα ξανά το κουμπί για πυρ.',
+ 'h.launch':'<b>Απογείωση:</b> απόσταση 3 → εντοπισμός στο 2 → βομβαρδισμός στο 1. Πάτα ξανά το κουμπί.',
+ 'h.aim':'Στόχος <b>{cell}</b> — πάτα ξανά για πυρ.','h.first':'Πρώτος στόχος <b>{cell}</b> — διάλεξε δεύτερο.',
+ 'h.used':'Αυτό το τετράγωνο έχει ήδη βληθεί. Διάλεξε άλλο.','h.cancel':'Ακυρώθηκε ο πρώτος στόχος.',
+ 'h.wait':'Ο εχθρός κάνει την κίνησή του…','h.wait2':'Περίμενε τον άλλον παίκτη…',
+ 'h.setupShip':'Διάλεξε σκάφος και πάτα στον χάρτη. Κάθε σκάφος δίνει μια ικανότητα — δες τον πίνακα.',
+ 'h.setupSub':'<b>Υποβρύχιο:</b> κινείται στον βυθό και περνά κάτω από πλοία. Μέσα στο παιχνίδι μετακινείται κάθε γύρο.',
+ 'h.setupMines':'<b>Νάρκες:</b> πάτα τετράγωνα για να τις ρίξεις (3 συνολικά). Όποιος τις χτυπήσει με κανόνι ή τορπίλη χάνει τον επόμενο γύρο.',
+ 'h.noFit':'Δεν χωράει εκεί — τα πλοία της επιφάνειας δεν ακουμπούν μεταξύ τους.',
+ 'h.noRotate':'Δεν υπάρχει χώρος για περιστροφή εδώ.','h.mineOnShip':'Η νάρκη δεν μπαίνει πάνω στο ίδιο σου το πλοίο.',
+ 'h.minesFull':'Έχεις ήδη 3 νάρκες — πάτα μία για να την πάρεις από εκεί.','h.minesLeft':'Τοποθέτησε και τις 3 νάρκες σου — ή πάτα «Τυχαία παράταξη».',
+ 'h.placed':'{ship} στη θέση {cell}.','h.edge':'Το υποβρύχιο δεν μπορεί να βγει από τον χάρτη.','h.over':'Η ναυμαχία τελείωσε — ο χάρτης αποκαλύφθηκε: πλοία, υποβρύχιο και νάρκες.',
+ 'ui.enemyWaters':'Εχθρικά νερά','ui.myFleet':'Ο στόλος μου','ui.waters':'Νερά {who}','ui.fleetOf':'Στόλος {who}',
+ 'ui.aiming':'Στόχευση: <b>{layer}</b>','ui.subDepth':'Υποβρύχιο: {v}','ui.lost':'χάθηκε','ui.minesOf':'Νάρκες: {n}/3',
+ 'ui.tapShip':'Πάτα σκάφος, μετά θέση','ui.levelDeep':'Επίπεδο: Βυθός',
+ 'ui.rotate':'Περιστροφή','ui.shuffle':'Τυχαία παράταξη','ui.game':'Παιχνίδι','ui.vsAi':'Εναντίον υπολογιστή','ui.duo':'Δύο παίκτες (ίδια συσκευή)',
+ 'ui.opponent':'Αντίπαλος','ui.easy':'Νεοσύλλεκτος','ui.normal':'Πλοίαρχος','ui.hard':'Ναύαρχος','ui.start':'ΑΠΟΠΛΟΥΣ',
+ 'ui.hSea':'Κατάσταση θάλασσας','ui.hSection':'Κάθετη τομή','ui.hFleets':'Στόλοι και ικανότητες','ui.hLog':'Ημερολόγιο γέφυρας','ui.hRules':'Κανόνες εμπλοκής',
+ 'ui.sectionAlt':'Τομή: αεροσκάφη, επιφάνεια και βάθη',
+ 'ui.maneuver':'ΕΛΙΓΜΟΣ','ui.surfaceUp':'▲ Ανάδυση','ui.dive':'▼ Κατάδυση',
+ 'ui.rShort':'Γ{n}','ui.setupTitle':'Παράταξη στόλου','ui.setupOf':'Παράταξη · {who}','ui.yourTurn':'Σειρά σου','ui.turn':'ΓΥΡΟΣ {n}','ui.playing':'{who} παίζει…',
+ 'ui.win':'Νίκη','ui.lose':'Ήττα','ui.wonBy':'Νίκησε ο {who}',
+ 'ui.mine':'Εσύ','ui.enemy':'Εχθρός','ui.p1':'Παίκτης 1','ui.p2':'Παίκτης 2','ui.p1s':'Π1','ui.p2s':'Π2',
+ 'ui.yourFleet':'Ο στόλος σου','ui.enemyFleet':'Εχθρικός στόλος','ui.intact':'ακέραιο','ui.sunkShort':'βυθίστηκε','ui.hitsOf':'{a}/{b} χτυπήματα','ui.hitsN':'{n} χτυπ.',
+ 'ui.airMine':'Δικά σου: <b>{air}</b> σε πτήση · υπόστεγο <b>{hangar}</b>','ui.refuelN':' · {n} σε ανεφοδιασμό','ui.deckOut':' · <span class="warn">κατάστρωμα εκτός</span>',
+ 'ui.airOpp':'Απέναντι: ','ui.airOppN':'<b>{n}</b> σε πτήση · πιο κοντινό σε απόσταση {d}','ui.minesRow':'Νάρκες σου: <b>{n}</b> · Ριπή: {burst}','ui.burstReady':'έτοιμη','ui.burstIn':'σε {n} γύρ.',
+ 'ui.gaugeLost':'<b style="color:var(--flare)">Χάθηκε</b><small>Το υποβρύχιό σου βυθίστηκε</small>',
+ 'ui.gauge':'<b>{m}μ</b> · {name}<small>Βόμβα βυθού: {dc}% · σόναρ σε ακούει {son}%{peri}<br>{man}</small>',
+ 'ui.periNote':' · κανόνι 50%','ui.manDone':'Ο ελιγμός του γύρου έγινε.','ui.manFree':'Διαθέσιμος ελιγμός: βάθος ή ένα τετράγωνο.',
+ 'ui.seaNext':'Αλλάζει σε {n} γύρ.','ui.seaStart':'Ξεκινά με γαλήνη','ui.thermo':'θερμοκλινές','ui.unknownDepth':'? βάθος άγνωστο','ui.echoAgo':'ηχώ πριν {n} γύρ.','ui.echoNow':'ηχώ τώρα',
+ 'ui.handoffSetup':'Πάρε τη συσκευή και παράταξε τον στόλο σου χωρίς να κοιτάει ο άλλος.','ui.handoffTurn':'Πάρε τη συσκευή. Η οθόνη κρύβει τα πάντα μέχρι να πατήσεις.','ui.ready':'ΕΙΜΑΙ ΕΤΟΙΜΟΣ',
+ 'ui.again':'ΝΕΑ ΝΑΥΜΑΧΙΑ','ui.winText':'Ο εχθρικός στόλος βρίσκεται στον βυθό. Άψογη διοίκηση.','ui.loseText':'Ο στόλος σου χάθηκε. Ο εχθρός κράτησε σκάφη στη θάλασσα.','ui.duoText':'Νίκησε ο {who} — ο άλλος στόλος βρίσκεται στον βυθό.',
+ 'ui.stRounds':'γύροι','ui.stAcc':'ευστοχία','ui.stPlanes':'καταρρίψεις','ui.stMines':'νάρκες που πάτησε',
+ 'ui.rank':'{rank} · {w} ΝΙΚΕΣ · {l} ΗΤΤΕΣ','rank.1':'ΣΗΜΑΙΟΦΟΡΟΣ','rank.2':'ΥΠΟΠΛΟΙΑΡΧΟΣ','rank.3':'ΠΛΟΙΑΡΧΟΣ','rank.4':'ΝΑΥΑΡΧΟΣ',
+ 'base.gun':'Κανόνι {cell}','base.burst':'Διπλή ριπή {cell}+{cell2}','base.dc':'Βόμβες βυθού {cell}','base.sonar':'Σόναρ {cell}','base.torp':'Τορπίλη {cell}','base.bomb':'Αεροπορική επιδρομή {cell}',
+ 'out.mine':'— ΝΑΡΚΗ! Ζημιά στο σκάφος, χάνεις τον επόμενο γύρο.','out.mineTorp':'— σκάλωσε σε ΝΑΡΚΗ στο {cell}! Χάνεις τον επόμενο γύρο.',
+ 'out.storm':'— το κύμα χάλασε τη βολή.','out.hit':'— εύστοχο!','out.hitShip':'— χτυπήθηκε: {ship}!','out.miss':'— νερό.',
+ 'out.peri':'— το βλήμα βρήκε υποβρύχιο στο περισκόπιο!','out.sunk':'ΒΥΘΙΣΤΗΚΕ: {ship}!','out.sunkCv':'ΒΥΘΙΣΤΗΚΕ: {ship} — χάθηκαν και τα αεροσκάφη του!',
+ 'out.dc1':'— επαφή! 1 χτύπημα σε υποβρύχιο.','out.dcN':'— επαφή! {n} χτυπήματα σε υποβρύχιο.','out.dcNear':'— ύποπτη ηχώ, το υποβρύχιο γλίτωσε παρά τρίχα.','out.dcNone':'— καμία επαφή.',
+ 'out.echo':'— ΗΧΩ στα {m}μ!','out.silent':'— σιωπή.',
+ 'out.hits1':'— 1 χτύπημα!','out.hitsN':'— {n} χτυπήματα!','out.torpMiss':'— πέρασε στο κενό.','out.wake':'Το ίχνος της φάνηκε στην επιφάνεια.',
+ 'out.bombMiss':'— οι βόμβες έπεσαν στη θάλασσα.','out.bombDrift':'Ο αέρας παρέσυρε τη ρίψη.',
+ 'ev.aaHit':'Αντιαεροπορικά: καταρρίφθηκε αεροσκάφος σε απόσταση {d}!','ev.aaMiss':'Αντιαεροπορικά: αστοχία (απόσταση {d}, {p}%).',
+ 'ev.launch':'Απογείωση αεροσκάφους — απόσταση 3 από τον στόχο.','ev.recon':'Αναγνωριστικό: εντοπίστηκε στόχος στο {cell}.','ev.reconFog':'Το αναγνωριστικό χάθηκε στην ομίχλη — κανένας εντοπισμός.',
+ 'ev.overhead':'Αεροσκάφος πάνω από τον στόχο — έτοιμη η επιδρομή.','ev.drift':'Το ρεύμα παρέσυρε το υποβρύχιο ένα τετράγωνο.',
+ 'ev.sea':'Κατάσταση θάλασσας: {sea}. {seaD}','ev.skip':'{who}: επισκευές μετά τη νάρκη — χάνει τον γύρο.',
+ 'ev.depth':'Υποβρύχιο στα {m}μ ({depthName}).','ev.move':'Το υποβρύχιο μετακινήθηκε στο {cell}.',
+ 'ev.setup':'Παράταξε τον στόλο σου: 5 σκάφη και 3 νάρκες. Κάθε σκάφος σού δίνει και μια ικανότητα.',
+ 'ev.start':'Απόπλους! Θάλασσα γαλήνια. Κάθε γύρο: μία ενέργεια και ένας ελιγμός υποβρυχίου.',
+ 'rules':[
+  'Τρία επίπεδα: <b>Αέρας</b>, <b>Επιφάνεια</b>, <b>Βυθός</b>. Μία ενέργεια τον γύρο, συν έναν δωρεάν <b>ελιγμό</b> του υποβρυχίου.',
+  '<b>Ελιγμός:</b> ή αλλάζεις βάθος ή μετακινείς το υποβρύχιο ένα τετράγωνο — όχι και τα δύο.',
+  '<b>Βάθη:</b> 15μ ρίχνει τορπίλες αλλά το κανόνι το βρίσκει 50%· 120μ βόμβες βυθού 60%· 300μ μόνο 25% και το σόναρ το χάνει συχνά — εκεί όμως δεν ρίχνει τορπίλες.',
+  '<b>Θερμοκλινές:</b> κάτω από τα 300μ το σόναρ ακούει λάθος — «σιωπή» δεν σημαίνει πάντα άδεια περιοχή.',
+  '<b>Νάρκες:</b> τρεις σε κάθε πλευρά. Όποιος χτυπήσει ναρκοθετημένο τετράγωνο με κανόνι ή τορπίλη <b>χάνει τον επόμενο γύρο</b>. Ο βομβαρδισμός από αέρος τις αγνοεί.',
+  '<b>Κάθε πλοίο δίνει μια ικανότητα:</b> Αεροπλανοφόρο → αεροσκάφη, Φρεγάτα → σόναρ και αντιαεροπορικά, Αντιτορπιλικό → βόμβες βυθού, Πυραυλάκατος → διπλή ριπή, Υποβρύχιο → τορπίλες. Όταν βυθιστεί, χάνεται και η ικανότητά του.',
+  'Δύο χτυπήματα στο αεροπλανοφόρο καταστρέφουν το κατάστρωμα: δεν απογειώνεται τίποτα μέχρι το τέλος.',
+  '<b>Αεροσκάφη:</b> πλησιάζουν 3 → 2 → 1. Στο 2 εντοπίζουν πλοίο, στο 1 βομβαρδίζουν 2×2. Αντιαεροπορικά: 25% / 50% / 80%.',
+  '<b>Κατάσταση θάλασσας:</b> αλλάζει κάθε 4 γύρους και επηρεάζει τα πάντα.',
+  'Νίκη: βυθίζεις και τα 5 σκάφη του αντιπάλου.'
+ ]
+},
+en:{
+ 'brand':'BATTLESHIP','brand2':'3D','tagline':'Air · Surface · Deep','langBtn':'ΕΛ',
+ 'sfx.on':'SOUND ON','sfx.off':'SOUND OFF','install':'INSTALL',
+ 'cols':'ABCDEFGHIJ',
+ 'ship.cv':'Carrier','ship.ff':'Frigate','ship.dd':'Destroyer','ship.pb':'Missile boat','ship.ss':'Submarine',
+ 'gift.cv':'aircraft','gift.ff':'sonar + flak','gift.dd':'depth charges','gift.pb':'double salvo','gift.ss':'torpedoes',
+ 'depth.1':'Periscope','depth.2':'Mid depth','depth.3':'Deep',
+ 'layer.surface':'Surface','layer.deep':'Deep','layer.air':'Air',
+ 'sea.calm.n':'Calm','sea.calm.d':'Clear horizon. Every weapon works normally.',
+ 'sea.storm.n':'Storm','sea.storm.d':'1 in 5 gun shots is lost in the swell, aircraft are grounded and depth charges drift.',
+ 'sea.fog.n':'Fog','sea.fog.d':'Recon planes see nothing and flak fires blind (−25%).',
+ 'sea.current.n':'Currents','sea.current.d':'Submarines drift on their own every round and sonar gets confused.',
+ 'w.gun':'Gun','w.burst':'Double salvo','w.dc':'Depth charge','w.sonar':'Sonar','w.torp':'Torpedo','w.bomb':'Air strike','w.aa':'Flak','w.launch':'Launch',
+ 'm.gunInf':'∞ · single square','m.gunStorm':'storm · 20% lost','m.burstLost':'missile boat lost','m.reload':'reloading · {n} rnd.','m.burstOk':'2 shots at once',
+ 'm.ddLost':'destroyer lost','m.dcLeft':'×{n} · 5-square cross','m.dcOut':'out of charges','m.ffLost':'frigate lost','m.sonarLeft':'×{n} · 3×3 sweep','m.sonarOut':'out of sonar',
+ 'm.ssLost':'submarine lost','m.periOnly':'only at 15 m','m.torpOk':'ready · 1×3 line',
+ 'm.bombReady':'{n} over target · 2×2','m.bombNone':'none at distance 1',
+ 'm.aa':'dist. {d} · {p}%','m.skyClear':'clear sky',
+ 'm.cvLost':'carrier lost','m.deck':'flight deck wrecked','m.stormAir':'storm — grounded','m.refuel':'refuelling…','m.hangarEmpty':'hangar empty','m.maxAir':'max 2 airborne','m.hangar':'hangar: {n}',
+ 'm.again':'tap again to fire','m.second':'pick a second target',
+ 'h.gun':'<b>Gun:</b> one shot at one square. Hits the surface — and a submarine at periscope depth (50%). Watch out for mines.',
+ 'h.burst':'<b>Double salvo:</b> two shots in one round. Pick the first square, then the second.',
+ 'h.dc':'<b>Depth charge:</b> a 5-square cross. Hit chance by depth 90% / 60% / 25%. Tap twice to fire.',
+ 'h.sonar':'<b>Sonar:</b> 3×3 sweep. At 300 m the thermocline fools it — "silence" does not mean empty. Tap twice.',
+ 'h.torp':'<b>Torpedo:</b> a certain hit along a 1×3 line, but it reveals your submarine\'s line and detonates on mines. Tap twice.',
+ 'h.bomb':'<b>Air strike:</b> a 2×2 area that ignores mines. Tap twice.',
+ 'h.aa':'<b>Flak:</b> fires at the nearest enemy aircraft. Tap the button again to fire.',
+ 'h.launch':'<b>Launch:</b> distance 3 → spots at 2 → bombs at 1. Tap the button again.',
+ 'h.aim':'Target <b>{cell}</b> — tap again to fire.','h.first':'First target <b>{cell}</b> — pick a second one.',
+ 'h.used':'You have already fired at that square. Pick another.','h.cancel':'First target cleared.',
+ 'h.wait':'The enemy is taking aim…','h.wait2':'Waiting for the other player…',
+ 'h.setupShip':'Pick a ship and tap the map. Every ship grants an ability — see the panel.',
+ 'h.setupSub':'<b>Submarine:</b> it sits in the deep layer and can slip under your ships. In play it moves every round.',
+ 'h.setupMines':'<b>Mines:</b> tap squares to lay them (3 in total). Anyone hitting one with a gun or torpedo loses their next round.',
+ 'h.noFit':'It does not fit there — surface ships may not touch each other.',
+ 'h.noRotate':'No room to rotate here.','h.mineOnShip':'A mine cannot sit on your own ship.',
+ 'h.minesFull':'You already have 3 mines — tap one to pick it back up.','h.minesLeft':'Lay all 3 mines — or press "Random layout".',
+ 'h.placed':'{ship} placed at {cell}.','h.edge':'The submarine cannot leave the map.','h.over':'Battle over — the map is revealed: ships, submarine and mines.',
+ 'ui.enemyWaters':'Enemy waters','ui.myFleet':'My fleet','ui.waters':'{who} waters','ui.fleetOf':'{who} fleet',
+ 'ui.aiming':'Aiming: <b>{layer}</b>','ui.subDepth':'Submarine: {v}','ui.lost':'lost','ui.minesOf':'Mines: {n}/3',
+ 'ui.tapShip':'Tap a ship, then a square','ui.levelDeep':'Layer: Deep',
+ 'ui.rotate':'Rotate','ui.shuffle':'Random layout','ui.game':'Game','ui.vsAi':'Against the computer','ui.duo':'Two players (same device)',
+ 'ui.opponent':'Opponent','ui.easy':'Recruit','ui.normal':'Captain','ui.hard':'Admiral','ui.start':'SET SAIL',
+ 'ui.hSea':'Sea state','ui.hSection':'Vertical section','ui.hFleets':'Fleets and abilities','ui.hLog':'Bridge log','ui.hRules':'Rules of engagement',
+ 'ui.sectionAlt':'Section: aircraft, surface and depths',
+ 'ui.maneuver':'MANOEUVRE','ui.surfaceUp':'▲ Surface','ui.dive':'▼ Dive',
+ 'ui.rShort':'R{n}','ui.setupTitle':'Fleet deployment','ui.setupOf':'Deployment · {who}','ui.yourTurn':'Your turn','ui.turn':'ROUND {n}','ui.playing':'{who} is playing…',
+ 'ui.win':'Victory','ui.lose':'Defeat','ui.wonBy':'{who} wins',
+ 'ui.mine':'You','ui.enemy':'Enemy','ui.p1':'Player 1','ui.p2':'Player 2','ui.p1s':'P1','ui.p2s':'P2',
+ 'ui.yourFleet':'Your fleet','ui.enemyFleet':'Enemy fleet','ui.intact':'intact','ui.sunkShort':'sunk','ui.hitsOf':'{a}/{b} hits','ui.hitsN':'{n} hits',
+ 'ui.airMine':'Yours: <b>{air}</b> airborne · hangar <b>{hangar}</b>','ui.refuelN':' · {n} refuelling','ui.deckOut':' · <span class="warn">deck out of action</span>',
+ 'ui.airOpp':'Across: ','ui.airOppN':'<b>{n}</b> airborne · nearest at distance {d}','ui.minesRow':'Your mines: <b>{n}</b> · Salvo: {burst}','ui.burstReady':'ready','ui.burstIn':'in {n} rnd.',
+ 'ui.gaugeLost':'<b style="color:var(--flare)">Lost</b><small>Your submarine went down</small>',
+ 'ui.gauge':'<b>{m} m</b> · {name}<small>Depth charge: {dc}% · sonar hears you {son}%{peri}<br>{man}</small>',
+ 'ui.periNote':' · gun 50%','ui.manDone':'This round\'s manoeuvre is spent.','ui.manFree':'Manoeuvre available: depth or one square.',
+ 'ui.seaNext':'Changes in {n} rnd.','ui.seaStart':'Starts calm','ui.thermo':'thermocline','ui.unknownDepth':'? depth unknown','ui.echoAgo':'echo {n} rnd. ago','ui.echoNow':'echo now',
+ 'ui.handoffSetup':'Take the device and lay out your fleet without the other player looking.','ui.handoffTurn':'Take the device. The screen hides everything until you tap.','ui.ready':'I AM READY',
+ 'ui.again':'NEW BATTLE','ui.winText':'The enemy fleet is on the seabed. Fine command.','ui.loseText':'Your fleet is gone. The enemy still had ships afloat.','ui.duoText':'{who} wins — the other fleet is on the seabed.',
+ 'ui.stRounds':'rounds','ui.stAcc':'accuracy','ui.stPlanes':'planes downed','ui.stMines':'mines they hit',
+ 'ui.rank':'{rank} · {w} WINS · {l} LOSSES','rank.1':'ENSIGN','rank.2':'LIEUTENANT','rank.3':'CAPTAIN','rank.4':'ADMIRAL',
+ 'base.gun':'Gun {cell}','base.burst':'Double salvo {cell}+{cell2}','base.dc':'Depth charges {cell}','base.sonar':'Sonar {cell}','base.torp':'Torpedo {cell}','base.bomb':'Air strike {cell}',
+ 'out.mine':'— MINE! Damage taken, you lose your next round.','out.mineTorp':'— snagged a MINE at {cell}! You lose your next round.',
+ 'out.storm':'— the swell threw the shot off.','out.hit':'— hit!','out.hitShip':'— {ship} hit!','out.miss':'— water.',
+ 'out.peri':'— the shell found a submarine at periscope depth!','out.sunk':'SUNK: {ship}!','out.sunkCv':'SUNK: {ship} — its aircraft went down with it!',
+ 'out.dc1':'— contact! 1 hit on a submarine.','out.dcN':'— contact! {n} hits on a submarine.','out.dcNear':'— odd echo, the submarine escaped by a whisker.','out.dcNone':'— no contact.',
+ 'out.echo':'— ECHO at {m} m!','out.silent':'— silence.',
+ 'out.hits1':'— 1 hit!','out.hitsN':'— {n} hits!','out.torpMiss':'— ran into empty water.','out.wake':'Its wake showed on the surface.',
+ 'out.bombMiss':'— the bombs fell into the sea.','out.bombDrift':'The wind pushed the drop off target.',
+ 'ev.aaHit':'Flak: enemy aircraft shot down at distance {d}!','ev.aaMiss':'Flak: missed (distance {d}, {p}%).',
+ 'ev.launch':'Aircraft launched — distance 3 from the target.','ev.recon':'Recon: target spotted at {cell}.','ev.reconFog':'The recon plane was lost in the fog — nothing spotted.',
+ 'ev.overhead':'Aircraft over the target — air strike ready.','ev.drift':'The current carried the submarine one square.',
+ 'ev.sea':'Sea state: {sea}. {seaD}','ev.skip':'{who}: repairs after the mine — round lost.',
+ 'ev.depth':'Submarine at {m} m ({depthName}).','ev.move':'The submarine moved to {cell}.',
+ 'ev.setup':'Lay out your fleet: 5 ships and 3 mines. Every ship also grants you an ability.',
+ 'ev.start':'Under way! Calm seas. Each round: one action and one submarine manoeuvre.',
+ 'rules':[
+  'Three layers: <b>Air</b>, <b>Surface</b>, <b>Deep</b>. One action per round, plus a free submarine <b>manoeuvre</b>.',
+  '<b>Manoeuvre:</b> either change depth or move the submarine one square — not both.',
+  '<b>Depths:</b> at 15 m it fires torpedoes but the gun finds it 50% of the time; at 120 m depth charges hit 60%; at 300 m only 25% and sonar often misses — but no torpedoes from there.',
+  '<b>Thermocline:</b> below 300 m sonar mishears — "silence" does not always mean an empty area.',
+  '<b>Mines:</b> three per side. Hitting a mined square with a gun or torpedo <b>costs you your next round</b>. Air strikes ignore mines.',
+  '<b>Every ship grants an ability:</b> Carrier → aircraft, Frigate → sonar and flak, Destroyer → depth charges, Missile boat → double salvo, Submarine → torpedoes. Sink it and the ability goes with it.',
+  'Two hits on the carrier wreck the flight deck: nothing launches for the rest of the battle.',
+  '<b>Aircraft:</b> close in 3 → 2 → 1. At 2 they spot a ship, at 1 they bomb a 2×2 area. Flak: 25% / 50% / 80%.',
+  '<b>Sea state:</b> changes every 4 rounds and affects everything.',
+  'Victory: sink all 5 of the opponent\'s vessels.'
+ ]
+}};
+let LANG='el';
+try{const sv=localStorage.getItem('naumachia3d-lang');LANG=sv==='en'||sv==='el'?sv:((navigator.language||'el').toLowerCase().indexOf('el')===0?'el':'en');}catch(e){}
+function t(k){const v=L[LANG][k];return v===undefined?(L.el[k]===undefined?k:L.el[k]):v;}
+function msg(k,p){
+  let s=t(k);
+  if(p)for(const key in p){
+    let v=p[key];
+    if(key==='cell'||key==='cell2')v=nm(v);
+    else if(key==='ship')v=t('ship.'+v);
+    else if(key==='who')v=shortName(v);
+    else if(key==='sea'){s=s.replace(/\{seaD\}/g,t('sea.'+v+'.d'));v=t('sea.'+v+'.n');}
+    else if(key==='depthName')v=t('depth.'+v);
+    else if(key==='layer')v=t('layer.'+v);
+    s=s.split('{'+key+'}').join(v);
+  }
+  return s;
+}
+const parts=arr=>arr.map(x=>msg(x.k,x.p)).join(' ');
+
+/* ===================== ΣΤΑΘΕΡΕΣ ===================== */
+const N=10;
+const FLEET=[{id:'cv',len:5,layer:'s'},{id:'ff',len:4,layer:'s'},{id:'dd',len:3,layer:'s'},{id:'pb',len:2,layer:'s'},{id:'ss',len:3,layer:'d'}];
+const DEPTH_M={1:15,2:120,3:300};
+const DC={1:.9,2:.6,3:.25};
+const SONAR_HEAR={1:1,2:.85,3:.55};
+const AA={3:.25,2:.5,1:.8};
+const AI_AA={easy:{1:.5,2:.12,3:0},normal:{1:.85,2:.3,3:.08},hard:{1:.95,2:.45,3:.12}};
+const MINES=3;
+const SEA_IDS=['calm','storm','fog','current'];
+const WEAPONS=[
+  {id:'gun',layer:'surface'},{id:'burst',layer:'surface'},{id:'dc',layer:'deep'},{id:'sonar',layer:'deep'},
+  {id:'torp',layer:'surface'},{id:'bomb',layer:'surface'},{id:'aa',layer:'air'},{id:'launch',layer:'air'}
+];
+const $=s=>document.getElementById(s);
+const rnd=Math.random;
+const idx=(r,c)=>r*N+c, RC=i=>[Math.floor(i/N),i%N], inb=(r,c)=>r>=0&&r<N&&c>=0&&c<N;
+const nm=i=>t('cols')[i%N]+(Math.floor(i/N)+1);
+const pick=a=>a[Math.floor(rnd()*a.length)];
+let G;
+
+/* ===================== ΗΧΟΣ ===================== */
+const Sfx=(function(){
+  let ctx=null,on=true;
+  try{on=localStorage.getItem('naumachia3d-sfx')!=='0';}catch(e){}
+  function ac(){
+    if(!on)return null;
+    try{if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();if(ctx.state==='suspended')ctx.resume();}catch(e){ctx=null;}
+    return ctx;
+  }
+  function noiseBuf(c,dur){const b=c.createBuffer(1,Math.max(1,Math.floor(c.sampleRate*dur)),c.sampleRate);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);return b;}
+  function noise(c,t0,dur,type,freq,vol){
+    const s=c.createBufferSource();s.buffer=noiseBuf(c,dur);
+    const f=c.createBiquadFilter();f.type=type;f.frequency.value=freq;
+    const g=c.createGain();g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+    s.connect(f);f.connect(g);g.connect(c.destination);s.start(t0);s.stop(t0+dur);
+  }
+  function tone(c,t0,dur,f0,f1,vol,type){
+    const o=c.createOscillator();o.type=type||'sine';o.frequency.setValueAtTime(f0,t0);
+    if(f1)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t0+dur);
+    const g=c.createGain();g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+Math.min(.04,dur/3));
+    g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+    o.connect(g);g.connect(c.destination);o.start(t0);o.stop(t0+dur+.02);
+  }
+  const lib={
+    gun(c,x){noise(c,x,.16,'lowpass',1100,.35);tone(c,x,.22,180,60,.25,'triangle');},
+    splash(c,x){noise(c,x,.45,'highpass',700,.18);},
+    hit(c,x){noise(c,x,.5,'lowpass',500,.45);tone(c,x,.5,120,40,.35,'sawtooth');},
+    mine(c,x){noise(c,x,.7,'lowpass',800,.5);tone(c,x,.7,90,30,.4,'square');},
+    sunk(c,x){tone(c,x,1.4,90,28,.4,'sine');noise(c,x+.05,1.1,'lowpass',320,.3);tone(c,x+.3,1,70,25,.25,'triangle');},
+    ping(c,x){tone(c,x,.5,1500,900,.22);tone(c,x+.28,.5,1500,900,.12);tone(c,x+.56,.5,1500,900,.06);},
+    torp(c,x){tone(c,x,.7,180,620,.2,'sawtooth');noise(c,x,.7,'bandpass',600,.12);},
+    plane(c,x){tone(c,x,.9,110,150,.16,'sawtooth');tone(c,x+.05,.85,118,158,.12,'sawtooth');},
+    alarm(c,x){tone(c,x,.22,760,760,.2,'square');tone(c,x+.26,.22,560,560,.2,'square');tone(c,x+.52,.22,760,760,.2,'square');},
+    win(c,x){[392,523,659,784].forEach((f,i)=>tone(c,x+i*.13,.35,f,f,.22,'triangle'));},
+    lose(c,x){[392,330,262,196].forEach((f,i)=>tone(c,x+i*.16,.5,f,f,.22,'sine'));},
+    sea(c,x){noise(c,x,.9,'lowpass',420,.2);}
+  };
+  return {
+    play(name,delay){const c=ac();if(!c||!lib[name])return;try{lib[name](c,c.currentTime+(delay||0));}catch(e){}},
+    toggle(){on=!on;try{localStorage.setItem('naumachia3d-sfx',on?'1':'0');}catch(e){}if(on)this.play('ping');return on;},
+    get on(){return on;}
+  };
+})();
+
+/* ===================== ΜΟΝΤΕΛΟ ===================== */
+function cellsFor(len,r,c,v){const o=[];for(let k=0;k<len;k++){const rr=r+(v?k:0),cc=c+(v?0:k);if(!inb(rr,cc))return null;o.push(idx(rr,cc));}return o;}
+function fits(side,ship,cells){
+  if(!cells)return false;
+  return side.ships.every(s=>{
+    if(s===ship||s.layer!==ship.layer||!s.cells)return true;
+    if(ship.layer==='d')return !s.cells.some(x=>cells.includes(x));
+    return !cells.some(x=>{const[r,c]=RC(x);for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(inb(r+dr,c+dc)&&s.cells.includes(idx(r+dr,c+dc)))return true;}return false;});
+  });
+}
+function placeRandom(side,ship){
+  for(let k=0;k<500;k++){const v=rnd()<.5,r=Math.floor(rnd()*N),c=Math.floor(rnd()*N);const cells=cellsFor(ship.len,r,c,v);
+    if(fits(side,ship,cells)){ship.cells=cells;ship.vert=v;return true;}}
+  return false;
+}
+function randomMines(side){
+  side.mines=[];
+  const bad=new Set();side.ships.forEach(s=>{if(s.layer==='s'&&s.cells)s.cells.forEach(c=>bad.add(c));});
+  while(side.mines.length<MINES){const i=Math.floor(rnd()*N*N);if(!bad.has(i)&&side.mines.indexOf(i)<0)side.mines.push(i);}
+}
+function randomFleet(side){
+  for(let k=0;k<60;k++){side.ships.forEach(s=>s.cells=null);if(side.ships.every(s=>placeRandom(side,s)))break;}
+  randomMines(side);
+}
+function makeSide(){
+  const s={ships:FLEET.map(f=>({id:f.id,len:f.len,layer:f.layer,cells:null,vert:false,hits:new Set(),sunk:false})),
+    depth:2,mines:[],hangar:3,air:[],refuel:[],dc:5,sonar:3,torpCd:0,burstCd:0,moved:false,skip:0};
+  randomFleet(s);return s;
+}
+function makeKnow(){return {surf:Array(N*N).fill(null),deep:Array(N*N).fill(null),mine:Array(N*N).fill(null),sonar:[],spotted:new Set(),wake:null,subDepth:null};}
+const other=a=>a==='P'?'A':'P';
+function ctx(a){return {att:G[a],def:G[other(a)],k:G.know[a],o:other(a)};}
+const shipOf=(side,id)=>side.ships.find(s=>s.id===id);
+const upFor=(side,id)=>!shipOf(side,id).sunk;
+const shipAt=(side,i,layer)=>side.ships.find(s=>s.layer===layer&&s.cells&&s.cells.indexOf(i)>=0);
+const subOf=side=>shipOf(side,'ss');
+const left=side=>side.ships.filter(s=>!s.sunk).length;
+const closest=air=>air.length?air.reduce((m,p)=>p.dist<m.dist?p:m):null;
+const hurt=(ship,i)=>ship.hits.has(ship.cells.indexOf(i));
+const sea=()=>G.sea.id;
+function deckOk(side){const cv=shipOf(side,'cv');return !cv.sunk&&cv.hits.size<2;}
+function canLaunch(side){return deckOk(side)&&side.hangar>0&&side.air.length<2&&sea()!=='storm';}
+function canTorp(side){return !subOf(side).sunk&&side.depth===1&&side.torpCd===0;}
+function aaChance(a,dist){let ch=AA[dist];if(!upFor(G[a],'ff'))ch*=.6;if(sea()==='fog')ch*=.75;return Math.min(.95,ch);}
+function footprint(w,i){
+  const[r,c]=RC(i);const o=[];
+  if(w==='dc'){[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>inb(r+d[0],c+d[1])&&o.push(idx(r+d[0],c+d[1])));}
+  else if(w==='sonar'){for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)inb(r+a,c+b)&&o.push(idx(r+a,c+b));}
+  else if(w==='torp'){for(let b=-1;b<=1;b++)inb(r,c+b)&&o.push(idx(r,c+b));}
+  else if(w==='bomb'){const rr=Math.min(r,N-2),cc=Math.min(c,N-2);o.push(idx(rr,cc),idx(rr,cc+1),idx(rr+1,cc),idx(rr+1,cc+1));}
+  else o.push(i);
+  return o;
+}
+function shortName(a){return a==='S'?'⚓':G.mode==='ai'?(a==='P'?t('ui.mine'):t('ui.enemy')):(a==='P'?t('ui.p1s'):t('ui.p2s'));}
+function longName(a){return G.mode==='ai'?(a==='P'?t('ui.mine'):t('ui.enemy')):(a==='P'?t('ui.p1'):t('ui.p2'));}
+const revealShip=a=>G.mode==='ai'&&a==='A';
+
+/* ===================== ΕΝΕΡΓΕΙΕΣ ===================== */
+function hitShip(a,ship,i){
+  const {def,k}=ctx(a);ship.hits.add(ship.cells.indexOf(i));
+  const L2=ship.layer==='s'?k.surf:k.deep;L2[i]='hit';G.stats[a].hits++;
+  if(ship.hits.size>=ship.len){ship.sunk=true;ship.cells.forEach(c=>L2[c]='sunk');
+    if(ship.id==='cv'){def.hangar=0;def.refuel=[];}
+    return true;}
+  return false;
+}
+const sunkPart=s=>({k:s.id==='cv'?'out.sunkCv':'out.sunk',p:{ship:s.id}});
+function mineTrap(a,cells){
+  const {att,def,k}=ctx(a);
+  let hitCell=-1;
+  for(const c of cells)if(def.mines.indexOf(c)>=0){hitCell=c;break;}
+  if(hitCell<0)return -1;
+  def.mines=def.mines.filter(c=>c!==hitCell);
+  k.mine[hitCell]='boom';att.skip=1;G.stats[a].mines++;
+  return hitCell;
+}
+function doGun(a,i){
+  const {def,k}=ctx(a);G.stats[a].shots++;
+  const base={k:'base.gun',p:{cell:i}};
+  if(mineTrap(a,[i])>=0)return {cells:[i],tone:'warn',sfx:'mine',parts:[base,{k:'out.mine'}]};
+  if(sea()==='storm'&&rnd()<.2)return {cells:[i],tone:'miss',sfx:'splash',parts:[base,{k:'out.storm'}]};
+  const s=shipAt(def,i,'s');
+  if(s&&!hurt(s,i)){
+    const sk=hitShip(a,s,i);
+    return {cells:[i],tone:sk?'sunk':'hit',sfx:sk?'sunk':'hit',
+      parts:[base,sk?sunkPart(s):(revealShip(a)?{k:'out.hitShip',p:{ship:s.id}}:{k:'out.hit'})]};
+  }
+  k.surf[i]='miss';
+  const sb=shipAt(def,i,'d');
+  if(sb&&!sb.sunk&&!hurt(sb,i)&&def.depth===1&&rnd()<.5){
+    const sk=hitShip(a,sb,i);G.heard[other(a)]=true;
+    return {cells:[i],tone:sk?'sunk':'hit',sfx:sk?'sunk':'hit',parts:[base,{k:'out.peri'}].concat(sk?[sunkPart(sb)]:[])};
+  }
+  return {cells:[i],tone:'miss',sfx:'splash',parts:[base,{k:'out.miss'}]};
+}
+function doBurst(a,pair){
+  const {att}=ctx(a);att.burstCd=4;
+  const r1=doGun(a,pair[0]);
+  const base={k:'base.burst',p:{cell:pair[0],cell2:pair[1]}};
+  if(att.skip)return {cells:r1.cells,tone:r1.tone,sfx:r1.sfx,parts:[base].concat(r1.parts.slice(1))};
+  const r2=doGun(a,pair[1]);
+  const tone=[r1.tone,r2.tone].indexOf('sunk')>=0?'sunk':[r1.tone,r2.tone].indexOf('hit')>=0?'hit':[r1.tone,r2.tone].indexOf('warn')>=0?'warn':'miss';
+  return {cells:r1.cells.concat(r2.cells),tone,sfx:tone==='sunk'?'sunk':tone==='hit'?'hit':'gun',
+    parts:[base].concat(r1.parts.slice(1)).concat(r2.parts.slice(1))};
+}
+function doDC(a,i){
+  const {att,def,k}=ctx(a);att.dc--;G.stats[a].shots++;
+  const cells=footprint('dc',i),sb=subOf(def);
+  const ch=DC[def.depth]*(sea()==='storm'?.85:1);
+  let hits=0,near=false,sunk=false;
+  for(const c of cells){
+    if(!sb.sunk&&sb.cells.indexOf(c)>=0&&!hurt(sb,c)){near=true;if(rnd()<ch){hits++;if(hitShip(a,sb,c))sunk=true;}}
+    else if(k.deep[c]===null)k.deep[c]='miss';
+  }
+  if(near&&!hits)cells.forEach(c=>{if(k.deep[c]===null)k.deep[c]='miss';});
+  const base={k:'base.dc',p:{cell:i}};
+  if(near)G.heard[other(a)]=true;
+  if(hits)return {cells,tone:sunk?'sunk':'hit',sfx:sunk?'sunk':'hit',
+    parts:[base,hits===1?{k:'out.dc1'}:{k:'out.dcN',p:{n:hits}}].concat(sunk?[sunkPart(sb)]:[])};
+  if(near&&rnd()<.45){k.sonar.push({cells,found:true,depth:null,turn:G.turn_no});
+    return {cells,tone:'info',sfx:'hit',parts:[base,{k:'out.dcNear'}]};}
+  return {cells,tone:'miss',sfx:'splash',parts:[base,{k:'out.dcNone'}]};
+}
+function doSonar(a,i){
+  const {att,def,k}=ctx(a);att.sonar--;
+  const cells=footprint('sonar',i),sb=subOf(def);
+  const inArea=!sb.sunk&&sb.cells.some(c=>cells.indexOf(c)>=0);
+  const found=inArea&&rnd()<SONAR_HEAR[def.depth]*(sea()==='current'?.8:1);
+  k.sonar.push({cells,found,depth:found?def.depth:null,turn:G.turn_no});
+  if(found)k.subDepth={depth:def.depth,turn:G.turn_no};
+  if(inArea&&rnd()<.7)G.heard[other(a)]=true;
+  G.ping[other(a)]={cells,turn:G.turn_no};
+  return {cells,tone:found?'info':'miss',sfx:'ping',
+    parts:[{k:'base.sonar',p:{cell:i}},found?{k:'out.echo',p:{m:DEPTH_M[def.depth]}}:{k:'out.silent'}]};
+}
+function doTorp(a,i){
+  const {att,def,k,o}=ctx(a);att.torpCd=3;G.stats[a].shots++;
+  const cells=footprint('torp',i);
+  const base={k:'base.torp',p:{cell:i}};
+  const mine=mineTrap(a,cells);
+  if(mine>=0)return {cells,tone:'warn',sfx:'mine',parts:[base,{k:'out.mineTorp',p:{cell:mine}}]};
+  let hits=0;const sunkS=[];
+  for(const c of cells){const s=shipAt(def,c,'s');if(s&&!hurt(s,c)){hits++;if(hitShip(a,s,c))sunkS.push(s);}else if(k.surf[c]===null)k.surf[c]='miss';}
+  const sb=subOf(att);const[r0,c0]=RC(sb.cells[0]);
+  const line=[];for(let x=0;x<N;x++)line.push(sb.vert?idx(x,c0):idx(r0,x));
+  G.know[o].wake={cells:line,turn:G.turn_no};
+  const ps=[base,hits===0?{k:'out.torpMiss'}:(hits===1?{k:'out.hits1'}:{k:'out.hitsN',p:{n:hits}})];
+  sunkS.forEach(s=>ps.push(sunkPart(s)));
+  ps.push({k:'out.wake'});
+  return {cells,tone:sunkS.length?'sunk':hits?'hit':'miss',sfx:hits?'hit':'torp',parts:ps};
+}
+function doBomb(a,i){
+  const {att,def,k}=ctx(a);G.stats[a].shots++;
+  const pi=att.air.findIndex(p=>p.dist===1);att.air.splice(pi,1);
+  if(deckOk(att))att.refuel.push(2);
+  let target=i,drift=false;
+  if(sea()==='storm'&&rnd()<.35){const[r,c]=RC(i);
+    target=idx(Math.max(0,Math.min(N-1,r+(rnd()<.5?-1:1))),Math.max(0,Math.min(N-1,c+(rnd()<.5?-1:1))));drift=true;}
+  const cells=footprint('bomb',target);let hits=0;const sunkS=[];
+  for(const c of cells){
+    const s=shipAt(def,c,'s');
+    if(s&&!hurt(s,c)){hits++;if(hitShip(a,s,c))sunkS.push(s);continue;}
+    if(k.surf[c]===null)k.surf[c]='miss';
+    const sb=shipAt(def,c,'d');
+    if(sb&&!sb.sunk&&!hurt(sb,c)&&def.depth===1&&rnd()<.5){hits++;if(hitShip(a,sb,c))sunkS.push(sb);}
+  }
+  const ps=[{k:'base.bomb',p:{cell:cells[0]}},hits===0?{k:'out.bombMiss'}:(hits===1?{k:'out.hits1'}:{k:'out.hitsN',p:{n:hits}})];
+  if(drift)ps.push({k:'out.bombDrift'});
+  sunkS.forEach(s=>ps.push(sunkPart(s)));
+  return {cells,tone:sunkS.length?'sunk':hits?'hit':'miss',sfx:hits?'hit':'splash',parts:ps};
+}
+function doAA(a){
+  const {def}=ctx(a);const p=closest(def.air);const ch=aaChance(a,p.dist);
+  if(rnd()<ch){def.air.splice(def.air.indexOf(p),1);G.stats[a].planes++;
+    return {cells:[],tone:'hit',sfx:'hit',parts:[{k:'ev.aaHit',p:{d:p.dist}}]};}
+  return {cells:[],tone:'miss',sfx:'gun',parts:[{k:'ev.aaMiss',p:{d:p.dist,p:Math.round(ch*100)}}]};
+}
+function doLaunch(a){
+  const {att}=ctx(a);att.hangar--;att.air.push({dist:3,fresh:true});
+  return {cells:[],tone:'info',sfx:'plane',parts:[{k:'ev.launch'}]};
+}
+
+/* ===================== ΤΕΛΟΣ ΓΥΡΟΥ ===================== */
+function endTurn(a){
+  const {att,def,k}=ctx(a);
+  for(const p of att.air){
+    if(p.fresh){p.fresh=false;continue;}
+    if(p.dist>1){
+      p.dist--;
+      if(p.dist===2){
+        if(sea()==='fog')log(a,'ev.reconFog',null,'info');
+        else{
+          const cand=[];def.ships.forEach(s=>{if(s.layer==='s'&&!s.sunk)s.cells.forEach(c=>{if(!hurt(s,c)&&!k.spotted.has(c))cand.push(c);});});
+          if(cand.length){const c=pick(cand);k.spotted.add(c);log(a,'ev.recon',{cell:c},'info');}
+        }
+      }
+      if(p.dist===1){log(a,'ev.overhead',null,'warn');Sfx.play('alarm',.3);}
+    }
+  }
+  att.refuel=att.refuel.map(x=>x-1);
+  const back=att.refuel.filter(x=>x<=0).length;att.refuel=att.refuel.filter(x=>x>0);
+  if(deckOk(att))att.hangar+=back;
+  if(att.torpCd>0)att.torpCd--;
+  if(att.burstCd>0)att.burstCd--;
+  att.moved=false;
+  if(sea()==='current'){
+    const sb=subOf(att);
+    if(!sb.sunk&&rnd()<.6){
+      const dirs=[[0,1],[0,-1],[1,0],[-1,0]].sort(()=>rnd()-.5);
+      for(const d of dirs){
+        const cells=sb.cells.map(c=>{const[r,cc]=RC(c);return inb(r+d[0],cc+d[1])?idx(r+d[0],cc+d[1]):-1;});
+        if(cells.indexOf(-1)<0){sb.cells=cells;log(a,'ev.drift',null,'info');break;}
+      }
+    }
+  }
+}
+function newSea(){
+  const w=pick(SEA_IDS.filter(s=>s!==G.sea.id));
+  G.sea={id:w,since:G.turn_no};
+  log('S','ev.sea',{sea:w},'info');
+  Sfx.play('sea');
+}
+
+/* ===================== ΥΠΟΛΟΓΙΣΤΗΣ ===================== */
+function density(k,def){
+  const sc=Array(N*N).fill(0);
+  const lens=def.ships.filter(s=>s.layer==='s'&&!s.sunk).map(s=>s.len);
+  for(const Ln of lens)for(let r=0;r<N;r++)for(let c=0;c<N;c++)for(const v of [false,true]){
+    const cells=cellsFor(Ln,r,c,v);if(!cells)continue;
+    if(cells.some(i=>k.surf[i]==='miss'||k.surf[i]==='sunk'))continue;
+    const h=cells.filter(i=>k.surf[i]==='hit').length;const w=1+h*25;
+    for(const i of cells)if(k.surf[i]===null)sc[i]+=w;
+  }
+  k.spotted.forEach(i=>{if(k.surf[i]===null)sc[i]+=600;});
+  k.mine.forEach((v,i)=>{if(v==='boom')sc[i]=0;});
+  return sc;
+}
+function argmax(arr,ok){let best=-1,bs=[];arr.forEach((v,i)=>{if(ok&&!ok(i))return;if(v>best){best=v;bs=[i];}else if(v===best)bs.push(i);});return {i:bs.length?pick(bs):0,v:best};}
+function bestArea(w,sc,k){
+  const out=Array(N*N).fill(-1);
+  for(let i=0;i<N*N;i++){const[r,c]=RC(i);
+    if(w==='bomb'&&(r>N-2||c>N-2))continue;
+    if(w==='torp'&&(c<1||c>N-2))continue;
+    out[i]=footprint(w,i).reduce((s,x)=>s+(k.surf[x]===null?sc[x]:0),0);}
+  return argmax(out).i;
+}
+function subCandidates(k,def){
+  const set=new Set();const sb=subOf(def);if(sb.sunk)return set;
+  k.deep.forEach((v,i)=>{if(v==='hit'){const[r,c]=RC(i);
+    [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]].forEach(d=>{if(inb(r+d[0],c+d[1]))set.add(idx(r+d[0],c+d[1]));});}});
+  k.sonar.forEach(s=>{if(s.found&&G.turn_no-s.turn<=3)s.cells.forEach(c=>set.add(c));});
+  if(k.wake&&G.turn_no-k.wake.turn<=3)k.wake.cells.forEach(c=>set.add(c));
+  return set;
+}
+function aiManeuver(){
+  const A=G.A,sb=subOf(A);if(sb.sunk||A.moved)return;
+  const heard=G.heard.A;G.heard.A=false;
+  const move=d=>{
+    const cells=sb.cells.map(c=>{const[r,cc]=RC(c);return inb(r+d[0],cc+d[1])?idx(r+d[0],cc+d[1]):-1;});
+    if(cells.indexOf(-1)>=0)return false;sb.cells=cells;A.moved=true;return true;
+  };
+  if(heard){
+    if(A.depth<3&&rnd()<.6){A.depth++;A.moved=true;return;}
+    const dirs=[[0,1],[0,-1],[1,0],[-1,0]].sort(()=>rnd()-.5);
+    for(const d of dirs)if(move(d))return;
+    return;
+  }
+  if(A.torpCd===0&&A.depth>1&&rnd()<.5){A.depth--;A.moved=true;return;}
+  if(A.depth===1&&A.torpCd>0&&rnd()<.6){A.depth++;A.moved=true;return;}
+  if(rnd()<.5){const dirs=[[0,1],[0,-1],[1,0],[-1,0]].sort(()=>rnd()-.5);for(const d of dirs)if(move(d))return;}
+}
+function aiChoose(){
+  const A=G.A,P=G.P,k=G.know.A,diff=G.diff;
+  const threat=closest(P.air);
+  if(threat&&rnd()<AI_AA[diff][threat.dist])return doAA('A');
+  const sc=density(k,P);
+  if(A.air.some(p=>p.dist===1))return doBomb('A',bestArea('bomb',sc,k));
+  const top=argmax(sc,i=>k.surf[i]===null);
+  const target=top.v>=26;
+  if(target&&canTorp(A)&&rnd()<.8)return doTorp('A',bestArea('torp',sc,k));
+  if(target&&upFor(A,'pb')&&A.burstCd===0&&rnd()<.6){
+    const first=top.i,sc2=sc.slice();sc2[first]=-1;
+    return doBurst('A',[first,argmax(sc2,i=>k.surf[i]===null&&i!==first).i]);
+  }
+  if(target)return doGun('A',diff==='easy'&&rnd()<.35?randomOpen(k):top.i);
+  const cand=subCandidates(k,P);
+  if(cand.size&&A.dc>0&&upFor(A,'dd')&&rnd()<.75){
+    const s=Array(N*N).fill(0);for(let i=0;i<N*N;i++)s[i]=footprint('dc',i).filter(c=>cand.has(c)).length;
+    return doDC('A',argmax(s).i);
+  }
+  if(canLaunch(A)&&rnd()<(diff==='easy'?.15:.32))return doLaunch('A');
+  if(!subOf(P).sunk&&A.sonar>0&&upFor(A,'ff')&&!cand.size&&G.turn_no>2&&rnd()<(diff==='hard'?.28:.16)){
+    const used=new Set();k.sonar.forEach(s=>{if(G.turn_no-s.turn<=3)s.cells.forEach(c=>used.add(c));});
+    const s=Array(N*N).fill(-1);
+    for(let i=0;i<N*N;i++){const[r,c]=RC(i);if(r<1||r>N-2||c<1||c>N-2)continue;s[i]=footprint('sonar',i).filter(c=>!used.has(c)).length+rnd();}
+    return doSonar('A',argmax(s).i);
+  }
+  if(diff==='easy'&&rnd()<.5)return doGun('A',randomOpen(k));
+  if(diff!=='hard'){const opts=[];sc.forEach((v,i)=>{if(k.surf[i]===null&&v>=top.v*.7)opts.push(i);});return doGun('A',pick(opts.length?opts:[top.i]));}
+  return doGun('A',top.i);
+}
+function randomOpen(k){const o=[];k.surf.forEach((v,i)=>v===null&&o.push(i));return o.length?pick(o):0;}
+
+/* ===================== ΡΟΗ ===================== */
+const blankStats=()=>({shots:0,hits:0,mines:0,planes:0});
+function newGame(keep){
+  const mode=keep?keep.mode:($('mode')?$('mode').value:'ai');
+  const diff=keep?keep.diff:($('diff')?$('diff').value:'normal');
+  G={phase:'setup',mode,diff,turn:'P',me:'P',setupSide:'P',turn_no:1,
+     P:makeSide(),A:makeSide(),know:{P:makeKnow(),A:makeKnow()},
+     sea:{id:'calm',since:1},weapon:'gun',aim:null,burst:[],sel:0,tab:'mine',busy:false,
+     log:[],stats:{P:blankStats(),A:blankStats()},heard:{P:false,A:false},ping:{P:null,A:null},winner:null};
+  $('overlay').hidden=true;$('handoff').hidden=true;
+  log('P','ev.setup',null,'info');
+  render();
+}
+function log(who,k,p,tone){G.log.unshift({who,k,p,tone,turn:G.turn_no});if(G.log.length>70)G.log.pop();}
+function logParts(who,ps,tone){G.log.unshift({who,ps,tone,turn:G.turn_no});if(G.log.length>70)G.log.pop();}
+function vibrate(p){try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}}
+function flash(cells,which){const arr=which==='enemy'?EC:MC;cells.forEach(i=>{const b=arr[i];if(!b)return;b.classList.remove('boom');void b.offsetWidth;b.classList.add('boom');setTimeout(()=>b.classList.remove('boom'),800);});}
+function checkOver(a){
+  const {def}=ctx(a);
+  if(left(def)===0){
+    G.phase='over';G.winner=a;
+    if(G.mode==='ai'){try{const key='naumachia3d-record';const r=JSON.parse(localStorage.getItem(key)||'{"w":0,"l":0}');a==='P'?r.w++:r.l++;localStorage.setItem(key,JSON.stringify(r));}catch(e){}}
+    Sfx.play(G.mode==='duo'||a==='P'?'win':'lose',.4);
+    render();setTimeout(showOver,1000);return true;
+  }
+  return false;
+}
+function resolve(a,res){
+  logParts(a,res.parts,res.tone);
+  if(res.sfx)Sfx.play(res.sfx);
+  if(res.tone==='hit'||res.tone==='sunk')vibrate(a===G.me?30:[40,40,80]);
+  if(res.tone==='warn')vibrate([60,60,60]);
+  render();flash(res.cells,a===G.me?'enemy':'mine');
+  if(checkOver(a))return;
+  G.busy=true;G.aim=null;G.burst=[];render();
+  setTimeout(()=>{
+    endTurn(a);
+    let next=other(a);
+    if(G[next].skip>0){G[next].skip--;log(next,'ev.skip',{who:next},'warn');next=a;}
+    G.turn=next;
+    if(next==='P')G.turn_no++;
+    if(G.turn_no-G.sea.since>=4)newSea();
+    if(G.mode==='ai'){
+      if(G.turn==='A'){G.tab='mine';render();setTimeout(aiTurn,620);}
+      else{G.busy=false;G.tab='enemy';if(!weaponState(G.weapon,'P').ok)G.weapon='gun';render();}
+    }else{
+      if(G.turn===a){G.busy=false;G.tab='enemy';if(!weaponState(G.weapon,a).ok)G.weapon='gun';render();}
+      else handoff();
+    }
+  },a===G.me?950:1250);
+}
+function aiTurn(){
+  if(G.phase!=='play')return;
+  aiManeuver();
+  setTimeout(()=>{if(G.phase==='play')resolve('A',aiChoose());},420);
+}
+function handoff(){
+  G.busy=true;
+  $('hoTitle').textContent=longName(G.turn).toUpperCase();
+  $('hoText').textContent=G.phase==='setup'?t('ui.handoffSetup'):t('ui.handoffTurn');
+  $('handoff').hidden=false;render();
+}
+function ready(){
+  $('handoff').hidden=true;
+  G.me=G.phase==='setup'?G.setupSide:G.turn;
+  G.busy=false;G.weapon='gun';G.aim=null;G.burst=[];G.sel=0;
+  G.tab=G.phase==='setup'?'mine':'enemy';
+  render();
+}
+function weaponState(w,a){
+  const S=G[a||G.me];
+  switch(w){
+    case 'gun':return {ok:true,m:sea()==='storm'?t('m.gunStorm'):t('m.gunInf')};
+    case 'burst':
+      if(!upFor(S,'pb'))return {ok:false,m:t('m.burstLost')};
+      if(S.burstCd>0)return {ok:false,m:msg('m.reload',{n:S.burstCd})};
+      return {ok:true,m:t('m.burstOk'),ready:true};
+    case 'dc':
+      if(!upFor(S,'dd'))return {ok:false,m:t('m.ddLost')};
+      return {ok:S.dc>0,m:S.dc>0?msg('m.dcLeft',{n:S.dc}):t('m.dcOut')};
+    case 'sonar':
+      if(!upFor(S,'ff'))return {ok:false,m:t('m.ffLost')};
+      return {ok:S.sonar>0,m:S.sonar>0?msg('m.sonarLeft',{n:S.sonar}):t('m.sonarOut')};
+    case 'torp':{
+      const s=subOf(S);
+      if(s.sunk)return {ok:false,m:t('m.ssLost')};
+      if(S.depth!==1)return {ok:false,m:t('m.periOnly')};
+      if(S.torpCd>0)return {ok:false,m:msg('m.reload',{n:S.torpCd})};
+      return {ok:true,m:t('m.torpOk'),ready:true};}
+    case 'bomb':{const n=S.air.filter(p=>p.dist===1).length;return {ok:n>0,m:n?msg('m.bombReady',{n}):t('m.bombNone'),ready:n>0};}
+    case 'aa':{const p=closest(G[other(a||G.me)].air);
+      return p?{ok:true,m:msg('m.aa',{d:p.dist,p:Math.round(aaChance(a||G.me,p.dist)*100)}),ready:p.dist===1}:{ok:false,m:t('m.skyClear')};}
+    case 'launch':
+      if(shipOf(S,'cv').sunk)return {ok:false,m:t('m.cvLost')};
+      if(!deckOk(S))return {ok:false,m:t('m.deck')};
+      if(sea()==='storm')return {ok:false,m:t('m.stormAir')};
+      if(S.hangar<=0)return {ok:false,m:S.refuel.length?t('m.refuel'):t('m.hangarEmpty')};
+      if(S.air.length>=2)return {ok:false,m:t('m.maxAir')};
+      return {ok:true,m:msg('m.hangar',{n:S.hangar})};
+  }
+  return {ok:false,m:''};
+}
+
+/* ===================== ΧΕΙΡΙΣΜΟΣ ===================== */
+const myTurn=()=>G.phase==='play'&&G.turn===G.me&&!G.busy;
+function onEnemy(i){
+  if(!myTurn())return;
+  const w=G.weapon,k=G.know[G.me];
+  if(w==='aa'||w==='launch')return;
+  if(!weaponState(w).ok)return;
+  if(w==='gun'){
+    if(k.surf[i]!==null){setHint(t('h.used'));return;}
+    resolve(G.me,doGun(G.me,i));return;
+  }
+  if(w==='burst'){
+    if(k.surf[i]!==null){setHint(t('h.used'));return;}
+    if(!G.burst.length){G.burst=[i];render();setHint(msg('h.first',{cell:i}));return;}
+    if(G.burst[0]===i){G.burst=[];render();setHint(t('h.cancel'));return;}
+    const pair=[G.burst[0],i];G.burst=[];resolve(G.me,doBurst(G.me,pair));return;
+  }
+  if(G.aim!==i){G.aim=i;render();setHint(msg('h.aim',{cell:i}));return;}
+  G.aim=null;
+  resolve(G.me,({dc:doDC,sonar:doSonar,torp:doTorp,bomb:doBomb})[w](G.me,i));
+}
+function onWeapon(w){
+  if(!myTurn()||!weaponState(w).ok)return;
+  if((w==='aa'||w==='launch')&&G.weapon===w){resolve(G.me,w==='aa'?doAA(G.me):doLaunch(G.me));return;}
+  G.weapon=w;G.aim=null;G.burst=[];G.tab='enemy';render();
+}
+function onMine(i){
+  if(G.phase!=='setup')return;
+  const S=G[G.setupSide];
+  if(G.sel===5){
+    if(S.ships.some(s=>s.layer==='s'&&s.cells.indexOf(i)>=0)){setHint(t('h.mineOnShip'));return;}
+    if(S.mines.indexOf(i)>=0)S.mines=S.mines.filter(c=>c!==i);
+    else if(S.mines.length>=MINES){setHint(t('h.minesFull'));return;}
+    else S.mines.push(i);
+    render();return;
+  }
+  const ship=S.ships[G.sel];
+  const[r,c]=RC(i);const cells=cellsFor(ship.len,r,c,ship.vert);
+  if(fits(S,ship,cells)){
+    ship.cells=cells;
+    if(ship.layer==='s')S.mines=S.mines.filter(m=>cells.indexOf(m)<0);
+    render();setHint(msg('h.placed',{ship:ship.id,cell:i}));
+  }else{
+    const o=S.ships.findIndex(s=>s.cells&&s.cells.indexOf(i)>=0&&s!==ship&&s.layer===ship.layer);
+    if(o>=0){G.sel=o;render();return;}
+    setHint(t('h.noFit'));
+  }
+}
+function rotate(){
+  const S=G[G.setupSide];if(G.sel===5)return;
+  const ship=S.ships[G.sel];const[r,c]=RC(ship.cells[0]);const nv=!ship.vert;
+  const tries=[[r,c]];for(let d=1;d<N;d++)tries.push([r-(nv?d:0),c-(nv?0:d)]);
+  for(const rc of tries){const cells=cellsFor(ship.len,rc[0],rc[1],nv);if(fits(S,ship,cells)){ship.cells=cells;ship.vert=nv;render();return;}}
+  setHint(t('h.noRotate'));
+}
+function startPressed(){
+  G.mode=$('mode').value;G.diff=$('diff').value;
+  if(G[G.setupSide].mines.length<MINES){setHint(t('h.minesLeft'));return;}
+  if(G.mode==='duo'&&G.setupSide==='P'){G.setupSide='A';G.turn='A';G.sel=0;handoff();return;}
+  G.phase='play';G.turn='P';G.tab='enemy';G.log=[];G.turn_no=1;G.sea={id:'calm',since:1};
+  log('P','ev.start',null,'info');
+  if(G.mode==='duo'){G.me='A';handoff();}else{G.me='P';render();}
+}
+function maneuverDepth(d){
+  const S=G[G.me];
+  if(!myTurn()||S.moved||subOf(S).sunk)return;
+  const nd=S.depth+d;if(nd<1||nd>3)return;
+  S.depth=nd;S.moved=true;
+  log(G.me,'ev.depth',{m:DEPTH_M[nd],depthName:nd},'info');
+  if(G.weapon==='torp'&&nd!==1)G.weapon='gun';
+  render();
+}
+function maneuverMove(dir){
+  const S=G[G.me],sb=subOf(S);
+  if(!myTurn()||S.moved||sb.sunk)return;
+  const d={up:[-1,0],down:[1,0],left:[0,-1],right:[0,1]}[dir];
+  const cells=sb.cells.map(c=>{const[r,cc]=RC(c);return inb(r+d[0],cc+d[1])?idx(r+d[0],cc+d[1]):-1;});
+  if(cells.indexOf(-1)>=0){setHint(t('h.edge'));return;}
+  sb.cells=cells;S.moved=true;
+  log(G.me,'ev.move',{cell:cells[0]},'info');
+  render();
+}
+const setHint=h=>{$('hint').innerHTML=h;};
+
+/* ===================== ΕΜΦΑΝΙΣΗ ===================== */
+let EC,MC;
+function buildBoard(el,onTap){
+  el.innerHTML='';
+  const add=x=>{const s=document.createElement('span');s.className='lbl';s.textContent=x;el.appendChild(s);};
+  add('');for(let c=0;c<N;c++)add(t('cols')[c]);
+  const cells=[];
+  for(let r=0;r<N;r++){add(r+1);
+    for(let c=0;c<N;c++){const i=idx(r,c);const b=document.createElement('button');b.type='button';b.className='cell';
+      b.setAttribute('aria-label',nm(i));b.innerHTML='<i class="dp"></i><i class="sf"></i>';
+      b.addEventListener('click',()=>onTap(i));el.appendChild(b);cells.push(b);}}
+  return cells;
+}
+function relabelBoards(){
+  [[$('boardEnemy'),EC],[$('boardMine'),MC]].forEach(pair=>{
+    const lbls=pair[0].querySelectorAll('.lbl');
+    for(let c=0;c<N;c++)lbls[c+1].textContent=t('cols')[c];
+    pair[1].forEach((b,i)=>b.setAttribute('aria-label',nm(i)));
+  });
+}
+function seg(s,i){const p=s.cells.indexOf(i);const o=[s.vert?'v':'h'];if(p===0)o.push('s0');if(p===s.len-1)o.push('s1');return o;}
+const layerOf=w=>(WEAPONS.find(x=>x.id===w)||WEAPONS[0]).layer;
+
+function renderEnemy(){
+  const me=G.me,opp=other(me),k=G.know[me],O=G[opp];
+  const aim=G.aim!=null?footprint(G.weapon,G.aim):[];
+  const son=k.sonar.filter(s=>G.turn_no-s.turn<=5);
+  const over=G.phase==='over';
+  const wake=k.wake&&G.turn_no-k.wake.turn<=3?k.wake.cells:[];
+  for(let i=0;i<N*N;i++){
+    const cl=['cell'];const s=k.surf[i],d=k.deep[i];
+    if(s==='sunk'||over){const sh=shipAt(O,i,'s');if(sh)cl.push('ship',...seg(sh,i));}
+    if(over){const sb=shipAt(O,i,'d');if(sb)cl.push('subc','dep'+O.depth);if(O.mines.indexOf(i)>=0)cl.push('mine');}
+    if(s)cl.push(s);if(d)cl.push('d'+d);
+    if(k.mine[i]==='boom')cl.push('mineboom');
+    if(k.spotted.has(i)&&s===null)cl.push('spot');
+    for(const so of son)if(so.cells.indexOf(i)>=0){cl.push(so.found?'sonY':'sonN');break;}
+    if(wake.indexOf(i)>=0)cl.push('wake');
+    if(G.burst.indexOf(i)>=0)cl.push('burst1');
+    if(aim.indexOf(i)>=0)cl.push('aim');
+    EC[i].className=cl.join(' ');EC[i].disabled=!myTurn();
+  }
+  const ly=G.phase==='play'?layerOf(G.weapon):'surface';
+  $('wrapEnemy').dataset.layer=ly;$('wrapEnemy').dataset.sea=sea();
+  $('layerTag').innerHTML=msg('ui.aiming',{layer:ly});
+  $('enemyTitle').textContent=G.mode==='ai'?t('ui.enemyWaters'):msg('ui.waters',{who:other(G.me)});
+}
+function renderMine(){
+  const me=G.me,S=G[me],k=G.know[other(me)];
+  const setup=G.phase==='setup';
+  const sel=setup?(G.sel===5?null:S.ships[G.sel]):null;
+  const ping=G.ping[me]&&G.turn_no-G.ping[me].turn<=1?G.ping[me].cells:[];
+  for(let i=0;i<N*N;i++){
+    const cl=['cell'];const sh=shipAt(S,i,'s'),sb=shipAt(S,i,'d');
+    if(sh){cl.push('ship',...seg(sh,i));if(sel===sh)cl.push('sel');}
+    if(sb&&!sb.sunk){cl.push('subc','dep'+S.depth);if(sel===sb)cl.push('sel');}
+    if(S.mines.indexOf(i)>=0)cl.push('mine');
+    const s=k.surf[i],d=k.deep[i];if(s)cl.push(s);if(d)cl.push('d'+d);
+    if(k.mine[i]==='boom')cl.push('mineboom');
+    if(k.spotted.has(i)&&s===null)cl.push('spot');
+    if(ping.indexOf(i)>=0)cl.push('enemyPing');
+    MC[i].className=cl.join(' ');MC[i].disabled=!setup;
+  }
+  $('boardMine').classList.toggle('fadeSurface',!!(setup&&(G.sel===5||(sel&&sel.layer==='d'))));
+  $('wrapMine').dataset.layer=setup&&sel&&sel.layer==='d'?'deep':'surface';
+  $('wrapMine').dataset.sea=sea();
+  $('mineTitle').textContent=G.mode==='ai'?t('ui.myFleet'):msg('ui.fleetOf',{who:G.me});
+  $('mineTag').textContent=setup?
+    (G.sel===5?msg('ui.minesOf',{n:S.mines.length}):(sel.layer==='d'?t('ui.levelDeep'):t('ui.tapShip'))):
+    msg('ui.subDepth',{v:subOf(S).sunk?t('ui.lost'):DEPTH_M[S.depth]+(LANG==='el'?'μ':' m')});
+}
+function renderWeapons(){
+  const el=$('weapons');el.hidden=G.phase!=='play';if(el.hidden)return;
+  const act=myTurn();
+  el.innerHTML=WEAPONS.map(w=>{
+    const st=weaponState(w.id),on=G.weapon===w.id;
+    const meta=on&&(w.id==='aa'||w.id==='launch')?t('m.again'):(on&&w.id==='burst'&&G.burst.length?t('m.second'):st.m);
+    return `<button type="button" class="wpn${on?' on':''}${st.ready?' ready':''}" data-w="${w.id}" ${(!st.ok||!act)?'disabled':''} aria-pressed="${on}">
+      <span class="ly ${w.layer}"></span><span class="n">${t('w.'+w.id)}</span><span class="m">${meta}</span></button>`;
+  }).join('');
+  el.querySelectorAll('.wpn').forEach(b=>b.addEventListener('click',()=>onWeapon(b.dataset.w)));
+}
+const planePath=(x,y,flip,col)=>`<g transform="translate(${x},${y}) scale(${flip?-1:1},1)"><path d="M-10,0 L7,-1.8 L10,0 L7,1.8 Z M-1,-.5 L-5,-7 L-1.5,-7 L4,-.5 Z M-1,.5 L-5,7 L-1.5,7 L4,.5 Z M-9,0 L-11,-4 L-8,-4 L-6,0 Z" style="fill:${col}"/></g>`;
+function renderSection(){
+  const me=G.me,opp=other(me),S=G[me],O=G[opp],k=G.know[me];
+  const dy={1:88,2:126,3:168},U=LANG==='el'?'μ':'m';
+  const skyTop=sea()==='fog'?'#26404F':sea()==='storm'?'#0A1A26':'#0B2233';
+  const skyBot=sea()==='fog'?'#3A5866':sea()==='storm'?'#15303F':'#1C4260';
+  let s=`<defs><linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${skyTop}"/><stop offset="1" stop-color="${skyBot}"/></linearGradient></defs>
+  <rect x="0" y="0" width="340" height="74" fill="url(#skyG)"/>
+  <rect x="0" y="74" width="340" height="32" style="fill:var(--d1)"/><rect x="0" y="106" width="340" height="42" style="fill:var(--d2)"/><rect x="0" y="148" width="340" height="52" style="fill:var(--d3)"/>
+  <line x1="0" y1="106" x2="340" y2="106" style="stroke:var(--foam)" stroke-opacity=".18" stroke-dasharray="6 5"/>
+  <text x="336" y="118" text-anchor="end" class="dl" style="fill:var(--foam);opacity:.5">${t('ui.thermo')}</text>`;
+  s+=sea()==='storm'
+    ?'<path d="M0,74 q12,-6 24,0 t24,0 t24,0 t24,0 t24,0 t24,0 t24,0 t24,0 t24,0 t24,0 t24,0 t24,0 t24,0 t24,0" style="fill:none;stroke:var(--foam)" stroke-opacity=".6"/>'
+    :'<line x1="0" y1="74" x2="340" y2="74" style="stroke:var(--foam)" stroke-opacity=".5"/>';
+  s+=`<text x="4" y="${dy[1]+3}" class="dl">15${U}</text><text x="4" y="${dy[2]+3}" class="dl">120${U}</text><text x="4" y="${dy[3]+3}" class="dl">300${U}</text>
+  <line x1="170" y1="22" x2="170" y2="198" style="stroke:var(--muted)" stroke-opacity=".35" stroke-dasharray="3 4"/>
+  <text x="30" y="14" class="st">${shortName(me).toUpperCase()}</text><text x="332" y="14" text-anchor="end" class="st">${shortName(opp).toUpperCase()}</text>`;
+  let x=30;
+  S.ships.filter(q=>q.layer==='s').forEach(q=>{const w=q.len*5.5;s+=`<path d="M${x},68 h${w} l-3,6 h${-(w-6)} z" style="fill:${q.sunk?'#2A3C48':'var(--hullc)'}"/>`;x+=w+4;});
+  x=332;
+  O.ships.filter(q=>q.layer==='s').forEach(q=>{const w=q.len*5.5;x-=w;
+    s+=`<path d="M${x},68 h${w} l-3,6 h${-(w-6)} z" style="fill:${q.sunk?'#3A1C1A':'none'};stroke:${q.sunk?'var(--flare)':'var(--muted)'}" stroke-dasharray="${q.sunk?'0':'2 2'}" stroke-opacity=".7"/>`;x-=4;});
+  const ms=subOf(S);
+  if(ms.sunk)s+=`<g transform="translate(85,194)"><ellipse rx="15" ry="3.5" style="fill:#2A3C48"/></g>`;
+  else s+=`<g transform="translate(85,${dy[S.depth]})"><ellipse rx="17" ry="4.6" style="fill:var(--foam)"/><rect x="-4" y="-8.5" width="7" height="5" rx="1.5" style="fill:var(--foam)"/>${S.depth===1?'<line x1="0" y1="-8" x2="0" y2="-16" style="stroke:var(--foam)" stroke-width="1.2"/>':''}</g>
+  <text x="85" y="${dy[S.depth]+16}" text-anchor="middle" class="dl">${nm(ms.cells[0])}</text>`;
+  const es=subOf(O);
+  if(es.sunk)s+=`<g transform="translate(255,194)"><ellipse rx="15" ry="3.5" style="fill:#3A1C1A;stroke:var(--flare)" stroke-width=".8"/></g>`;
+  else if(k.subDepth&&G.turn_no-k.subDepth.turn<=4){
+    const ago=G.turn_no-k.subDepth.turn;
+    s+=`<g transform="translate(255,${dy[k.subDepth.depth]})"><ellipse rx="17" ry="4.6" style="fill:none;stroke:var(--flare)" stroke-dasharray="3 2"/></g>
+    <text x="255" y="${dy[k.subDepth.depth]+15}" text-anchor="middle" class="dl">${ago?msg('ui.echoAgo',{n:ago}):t('ui.echoNow')}</text>`;
+  }else s+=`<text x="255" y="132" text-anchor="middle" class="pl" style="fill:var(--muted)">${t('ui.unknownDepth')}</text>`;
+  S.air.forEach((p,j)=>{const px=270-(p.dist-1)*55,py=30+j*16;
+    s+=planePath(px,py,false,'var(--foam)')+`<text x="${px}" y="${py-8}" text-anchor="middle" class="pl" style="fill:var(--foam)">${p.dist}</text>`;});
+  O.air.forEach((p,j)=>{const px=70+(p.dist-1)*55,py=36+j*16;
+    if(p.dist===1)s+=`<circle cx="${px}" cy="${py}" r="15" class="pulse" style="fill:none;stroke:var(--flare)" stroke-dasharray="3 3"/>`;
+    s+=planePath(px,py,true,'var(--flare)')+`<text x="${px}" y="${py-9}" text-anchor="middle" class="pl" style="fill:var(--flare)">${p.dist}</text>`;});
+  $('section').innerHTML=s;
+
+  const th=closest(O.air);
+  $('airline').innerHTML=
+    `<div>${msg('ui.airMine',{air:S.air.length,hangar:S.hangar})}${S.refuel.length?msg('ui.refuelN',{n:S.refuel.length}):''}${deckOk(S)?'':t('ui.deckOut')}</div>`+
+    `<div>${t('ui.airOpp')}${th?`<span class="warn">${msg('ui.airOppN',{n:O.air.length,d:th.dist})}</span>`:t('m.skyClear')}</div>`+
+    `<div>${msg('ui.minesRow',{n:S.mines.length,burst:upFor(S,'pb')?(S.burstCd?msg('ui.burstIn',{n:S.burstCd}):t('ui.burstReady')):t('ui.lost')})}</div>`;
+  const locked=!myTurn()||S.moved||ms.sunk;
+  $('gauge').innerHTML=ms.sunk?t('ui.gaugeLost'):msg('ui.gauge',{
+    m:DEPTH_M[S.depth],name:t('depth.'+S.depth),dc:Math.round(DC[S.depth]*100),son:Math.round(SONAR_HEAR[S.depth]*100),
+    peri:S.depth===1?t('ui.periNote'):'',man:S.moved?t('ui.manDone'):t('ui.manFree')});
+  $('btnUp').disabled=locked||S.depth<=1;$('btnDown').disabled=locked||S.depth>=3;
+  $('dpad').querySelectorAll('button').forEach(b=>b.disabled=locked);
+}
+function renderSea(){
+  const id=sea();
+  const icons={
+    calm:'<circle cx="19" cy="19" r="9" style="fill:none;stroke:var(--signal)" stroke-width="1.5"/><path d="M4,30 q7,-4 14,0 t14,0" style="fill:none;stroke:var(--foam)" stroke-width="1.5"/>',
+    storm:'<path d="M4,26 q6,-6 12,0 t12,0 M4,33 q6,-6 12,0 t12,0" style="fill:none;stroke:var(--foam)" stroke-width="1.5"/><path d="M20,4 L12,18 h7 l-4,10 12,-14 h-7 z" style="fill:var(--signal)"/>',
+    fog:'<path d="M3,14 h30 M6,21 h28 M3,28 h26 M8,35 h24" style="stroke:var(--muted)" stroke-width="2.5" stroke-linecap="round"/>',
+    current:'<path d="M3,12 q9,-7 17,0 t16,0 M3,22 q9,-7 17,0 t16,0 M3,32 q9,-7 17,0 t16,0" style="fill:none;stroke:var(--foam)" stroke-width="1.5"/>'
+  };
+  const nextIn=Math.max(1,4-(G.turn_no-G.sea.since));
+  $('seaBox').innerHTML=`<svg class="ico" viewBox="0 0 38 38">${icons[id]}</svg>
+    <div><h4>${t('sea.'+id+'.n')}</h4><p>${t('sea.'+id+'.d')}</p><p class="until">${G.phase==='play'?msg('ui.seaNext',{n:nextIn}):t('ui.seaStart')}</p></div>`;
+}
+function renderFleets(){
+  const me=G.me,S=G[me],O=G[other(me)];
+  const row=(s,mine)=>{
+    const cls=s.sunk?'dead':(s.hits.size?'hurt':'');
+    const dmg=s.sunk?t('ui.sunkShort'):(mine?msg('ui.hitsOf',{a:s.hits.size,b:s.len}):(s.hits.size?msg('ui.hitsN',{n:s.hits.size}):t('ui.intact')));
+    return `<li class="${cls}"><span class="nm">${t('ship.'+s.id)}</span><span class="meta">${mine?t('gift.'+s.id)+' · ':''}${dmg}</span></li>`;
+  };
+  $('fleets').innerHTML=
+    `<div><h4>${G.mode==='ai'?t('ui.yourFleet'):msg('ui.fleetOf',{who:me})}</h4><ul>${S.ships.map(s=>row(s,true)).join('')}</ul></div>`+
+    `<div><h4>${G.mode==='ai'?t('ui.enemyFleet'):msg('ui.fleetOf',{who:other(me)})}</h4><ul>${O.ships.map(s=>row(s,false)).join('')}</ul></div>`;
+}
+function renderLog(){
+  $('log').innerHTML=G.log.slice(0,40).map(e=>{
+    const txt=e.ps?parts(e.ps):msg(e.k,e.p);
+    return `<li class="${e.who===G.me?'me':''} ${e.tone||''}"><span class="t">${msg('ui.rShort',{n:e.turn})} ${shortName(e.who)}</span>${txt}</li>`;
+  }).join('');
+}
+function applyStatic(){
+  $('app').lang=LANG;
+  try{document.documentElement.lang=LANG;}catch(e){}
+  $('brandTitle').innerHTML=`${t('brand')}<span>${t('brand2')}</span>`;
+  $('tagline').textContent=t('tagline');
+  $('btnLang').textContent=t('langBtn');
+  $('btnInstall').textContent=t('install');
+  $('tabEnemyTxt').textContent=G.mode==='ai'?t('ui.enemyWaters'):msg('ui.waters',{who:other(G.me)});
+  $('tabMineTxt').textContent=G.mode==='ai'?t('ui.myFleet'):msg('ui.fleetOf',{who:G.me});
+  $('btnRotate').textContent=t('ui.rotate');
+  $('btnShuffle').textContent=t('ui.shuffle');
+  $('lblMode').textContent=t('ui.game');
+  $('mode').options[0].textContent=t('ui.vsAi');$('mode').options[1].textContent=t('ui.duo');
+  $('lblDiff').textContent=t('ui.opponent');
+  $('diff').options[0].textContent=t('ui.easy');$('diff').options[1].textContent=t('ui.normal');$('diff').options[2].textContent=t('ui.hard');
+  $('btnStart').textContent=t('ui.start');
+  $('hSea').textContent=t('ui.hSea');$('hSection').textContent=t('ui.hSection');
+  $('hFleets').textContent=t('ui.hFleets');$('hLog').textContent=t('ui.hLog');$('hRules').textContent=t('ui.hRules');
+  $('section').setAttribute('aria-label',t('ui.sectionAlt'));
+  $('dpadMid').textContent=t('ui.maneuver');
+  $('btnUp').textContent=t('ui.surfaceUp');$('btnDown').textContent=t('ui.dive');
+  $('btnReady').textContent=t('ui.ready');$('btnAgain').textContent=t('ui.again');
+  $('rulesList').innerHTML=t('rules').map(r=>`<li>${r}</li>`).join('');
+  $('btnSfx').textContent=Sfx.on?t('sfx.on'):t('sfx.off');
+  $('btnSfx').setAttribute('aria-pressed',Sfx.on?'true':'false');
+}
+function render(){
+  const play=G.phase!=='setup';
+  applyStatic();
+  $('setup').hidden=play;$('tabs').hidden=!play;
+  $('diffWrap').hidden=$('mode').value==='duo';
+  $('wrapEnemy').hidden=!play;$('boards').classList.toggle('single',!play);
+  $('wrapEnemy').classList.toggle('active',G.tab==='enemy');
+  $('wrapMine').classList.toggle('active',G.tab==='mine'||!play);
+  $('tabEnemy').classList.toggle('on',G.tab==='enemy');$('tabMine').classList.toggle('on',G.tab==='mine');
+  $('enemyLeft').textContent=` ${left(G[other(G.me)])}/5`;$('myLeft').textContent=` ${left(G[G.me])}/5`;
+  const st=$('status');st.classList.toggle('enemy',G.phase==='play'&&G.turn!==G.me);
+  $('statusText').innerHTML=
+    G.phase==='setup'?(G.mode==='duo'?msg('ui.setupOf',{who:longName(G.setupSide)}):t('ui.setupTitle')):
+    G.phase==='over'?(G.mode==='duo'?msg('ui.wonBy',{who:longName(G.winner)}):(G.winner==='P'?t('ui.win'):t('ui.lose'))):
+    (G.turn===G.me?`${t('ui.yourTurn')} <small>${msg('ui.turn',{n:G.turn_no})}</small>`
+      :`${G.mode==='ai'?t('h.wait'):msg('ui.playing',{who:longName(G.turn)})} <small>${msg('ui.turn',{n:G.turn_no})}</small>`);
+  if(G.phase==='setup'){
+    const S=G[G.setupSide];
+    $('chips').innerHTML=S.ships.map((s,i)=>
+      `<button type="button" class="chip${i===G.sel?' on':''}${s.layer==='d'?' deep':''}" data-i="${i}">${t('ship.'+s.id)}<span class="pips">${'<span></span>'.repeat(s.len)}</span></button>`).join('')+
+      `<button type="button" class="chip mines${G.sel===5?' on':''}" data-i="5">${LANG==='el'?'Νάρκες':'Mines'}<span class="pips">${'<span></span>'.repeat(S.mines.length)}</span>${S.mines.length}/${MINES}</button>`;
+    $('chips').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{G.sel=+b.dataset.i;render();}));
+    setHint(G.sel===5?t('h.setupMines'):(S.ships[G.sel].layer==='d'?t('h.setupSub'):t('h.setupShip')));
+  }else if(G.phase==='play'){
+    if(!myTurn())setHint(G.mode==='ai'?t('h.wait'):t('h.wait2'));
+    else if(G.weapon==='burst'&&G.burst.length)setHint(msg('h.first',{cell:G.burst[0]}));
+    else if(G.aim==null)setHint(t('h.'+G.weapon));
+  }else setHint(t('h.over'));
+  renderEnemy();renderMine();renderWeapons();renderSea();renderSection();renderFleets();renderLog();
+  let rec='';
+  try{const r=JSON.parse(localStorage.getItem('naumachia3d-record')||'null');
+    if(r)rec=msg('ui.rank',{rank:t('rank.'+(r.w>=10?4:r.w>=5?3:r.w>=2?2:1)),w:r.w,l:r.l});}catch(e){}
+  $('record').textContent=rec;
+}
+function showOver(){
+  const win=G.mode==='duo'?true:G.winner==='P';
+  const s=G.stats[G.mode==='duo'?G.winner:'P'];
+  $('ovTitle').textContent=(G.mode==='duo'?t('ui.win'):(win?t('ui.win'):t('ui.lose'))).toUpperCase();
+  $('ovTitle').className=win?'win':'lose';
+  $('ovText').textContent=G.mode==='duo'?msg('ui.duoText',{who:longName(G.winner)}):(win?t('ui.winText'):t('ui.loseText'));
+  $('ovStats').innerHTML=
+    `<div><b>${G.turn_no}</b><span>${t('ui.stRounds')}</span></div>`+
+    `<div><b>${s.shots?Math.round(s.hits/s.shots*100):0}%</b><span>${t('ui.stAcc')}</span></div>`+
+    `<div><b>${s.planes}</b><span>${t('ui.stPlanes')}</span></div>`+
+    `<div><b>${s.mines}</b><span>${t('ui.stMines')}</span></div>`;
+  $('overlay').hidden=false;
+}
+function switchLang(){
+  LANG=LANG==='el'?'en':'el';
+  try{localStorage.setItem('naumachia3d-lang',LANG);}catch(e){}
+  relabelBoards();
+  if(!$('handoff').hidden){$('hoTitle').textContent=longName(G.turn).toUpperCase();$('hoText').textContent=G.phase==='setup'?t('ui.handoffSetup'):t('ui.handoffTurn');}
+  if(!$('overlay').hidden)showOver();
+  render();
+}
+
+/* ===================== ΕΦΑΡΜΟΓΗ ΣΤΟ ΚΙΝΗΤΟ ===================== */
+let installEvt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;$('btnInstall').hidden=false;});
+$('btnInstall').addEventListener('click',async()=>{
+  if(!installEvt)return;
+  $('btnInstall').hidden=true;
+  try{installEvt.prompt();await installEvt.userChoice;}catch(e){}
+  installEvt=null;
+});
+window.addEventListener('appinstalled',()=>{$('btnInstall').hidden=true;});
+if(window.self===window.top&&'serviceWorker' in navigator&&location.protocol.indexOf('http')===0){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+}
+
+/* ===================== ΣΥΝΔΕΣΗ ===================== */
+EC=buildBoard($('boardEnemy'),onEnemy);
+MC=buildBoard($('boardMine'),onMine);
+$('tabEnemy').addEventListener('click',()=>{G.tab='enemy';render();});
+$('tabMine').addEventListener('click',()=>{G.tab='mine';render();});
+$('btnRotate').addEventListener('click',rotate);
+$('btnShuffle').addEventListener('click',()=>{randomFleet(G[G.setupSide]);render();});
+$('btnStart').addEventListener('click',startPressed);
+$('btnReady').addEventListener('click',ready);
+$('btnUp').addEventListener('click',()=>maneuverDepth(-1));
+$('btnDown').addEventListener('click',()=>maneuverDepth(1));
+$('dpad').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>maneuverMove(b.dataset.d)));
+$('mode').addEventListener('change',()=>{G.mode=$('mode').value;render();});
+$('btnSfx').addEventListener('click',()=>{Sfx.toggle();render();});
+$('btnLang').addEventListener('click',switchLang);
+$('btnAgain').addEventListener('click',()=>newGame({mode:G.mode,diff:G.diff}));
+newGame();
+})();
+</script>
+
+</body>
+</html>
